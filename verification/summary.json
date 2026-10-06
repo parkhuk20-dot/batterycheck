@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-02",
+  "scope": "가상 DEMO LAB 공지의 첫 로컬 수직 기능",
+  "backend": {
+    "runner": "unittest + FastAPI TestClient",
+    "tests": 29,
+    "status": "passed",
+    "resource_warnings": "none after connection-close fix"
+  },
+  "frontend_proxy": {
+    "runner": "node --test",
+    "tests": 8,
+    "status": "passed"
+  },
+  "frontend_build": {
+    "framework": "Next.js 16.3.5",
+    "mode": "webpack production, 1 worker",
+    "status": "passed"
+  },
+  "http_integration": {
+    "status": "passed",
+    "route": "Next.js -> FastAPI -> SQLite",
+    "cases": [
+      "SSR",
+      "register",
+      "missing_information",
+      "recheck",
+      "match",
+      "risk_independence",
+      "self_report_action",
+      "immutable_history",
+      "source_outage",
+      "actual_brand_guard",
+      "delete"
+    ]
+  },
+  "browser": {
+    "status": "passed",
+    "browser": "cached Chromium headless",
+    "desktop_focus_changed": false,
+    "cases": [
+      "manual_confirmation",
+      "match",
+      "missing_lot",
+      "edit_invalidates_result",
+      "register",
+      "recheck",
+      "emergency_before_query",
+      "action_self_report",
+      "history",
+      "source_outage",
+      "api_outage_keeps_emergency",
+      "mobile_no_overflow"
+    ],
+    "runtime_errors": []
+  },
+  "fixed_during_validation": [
+    "SQLite connections not closing",
+    "Next internal localhost URL versus browser 127.0.0.1 Origin"
+  ],
+  "remaining_failures": [],
+  "not_run": [
+    "official recall API integration/accuracy",
+    "OCR and AI model evaluation",
+    "battery lifetime/fire/internal-state prediction",
+    "real user trial",
+    "safety-expert approval",
+    "account/multi-user security",
+    "real notification delivery",
+    "deployment"
+  ],
+  "no_hardware_control": true,
+  "no_oibc_data": true,
+  "no_external_upload": true,
+  "data_notice": "테스트 결과는 가상 데이터 소프트웨어 검증이며 실제 안전성/정확도 성과가 아닙니다.",
+  "final_path": "/Users/sejin/Desktop/codyssey/fianl project/batterycheck",
+  "relocated_http_integration": "passed",
+  "demo_products_remaining_after_tests": 0
+}

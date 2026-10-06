@@ -1,0 +1,57 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: deploy/backend.Dockerfile
+    image: batterycheck-backend:local
+    init: true
+    restart: unless-stopped
+    environment:
+      BATTERYCHECK_DB: /data/batterycheck.sqlite3
+      BATTERYCHECK_ALLOWED_HOSTS: backend,localhost,127.0.0.1
+      BATTERYCHECK_ALLOWED_ORIGINS: ${BATTERYCHECK_ALLOWED_ORIGINS:-http://127.0.0.1:3114,http://localhost:3114}
+      BATTERYCHECK_COOKIE_SECURE: ${BATTERYCHECK_COOKIE_SECURE:-0}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      BATTERYCHECK_AI_MODEL: ${BATTERYCHECK_AI_MODEL:-claude-opus-5-5}
+    volumes:
+      - batterycheck-data:/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/frontend.Dockerfile
+    init: true
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      BATTERYCHECK_BACKEND_URL: http://backend:8814
+      BATTERYCHECK_ALLOWED_ORIGINS: ${BATTERYCHECK_ALLOWED_ORIGINS:-http://127.0.0.1:3114,http://localhost:3114}
+    ports:
+      - '127.0.0.1:3114:3114'
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+  worker:
+    image: batterycheck-backend:local
+    profiles: [notifications]
+    healthcheck:
+      disable: true
+    init: true
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      BATTERYCHECK_DB: /data/batterycheck.sqlite3
+    volumes:
+      - batterycheck-data:/data
+    command: [python, -m, batterycheck.worker, --interval, '21600']
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+volumes:
+  batterycheck-data:

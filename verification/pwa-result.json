@@ -1,0 +1,14 @@
+{
+  "status": "passed",
+  "cached_paths": [
+    "/icon.svg",
+    "/offline.html"
+  ],
+  "cases": [
+    "manifest",
+    "public_only_cache",
+    "offline_navigation",
+    "no_private_offline_records",
+    "offline_emergency_link"
+  ]
+}

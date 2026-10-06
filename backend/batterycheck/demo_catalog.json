@@ -1,0 +1,44 @@
+{
+  "version": "demo-2026-10-02-v1",
+  "source": {
+    "id": "demo-catalog",
+    "name": "가상 공지 저장소 — 공식 리콜 데이터 아님",
+    "state": "complete",
+    "last_success_at": "2026-10-02T06:00:00Z",
+    "scope": "DEMO LAB 가상 보조배터리 공지 3건",
+    "synthetic": true
+  },
+  "notices": [
+    {
+      "id": "DEMO-001",
+      "title": "[가상] DEMO PB-100 대상 조건 대조 연습",
+      "brand": "DEMO LAB",
+      "models": ["DEMO PB-100"],
+      "review_status": "reviewed",
+      "conditions": [
+        {"field": "manufactured_on", "operator": "date_range", "values": ["2026-01-01", "2026-03-31"]},
+        {"field": "sale_region", "operator": "one_of", "values": ["DEMO-KR"]},
+        {"field": "lot", "operator": "one_of", "values": ["001A"]}
+      ],
+      "action": "가상 시연: 공지의 조건을 확인하고 아래에서 조치 진행 상태를 기록하세요. 실제 회수·교환 접수는 실행하지 않습니다."
+    },
+    {
+      "id": "DEMO-002",
+      "title": "[가상] DEMO PB-200 정확 모델 대조 연습",
+      "brand": "DEMO LAB",
+      "models": ["DEMO PB-200"],
+      "review_status": "reviewed",
+      "conditions": [],
+      "action": "가상 시연: 공지 확인 후 조치 상태를 기록하세요. 실제 제품에 적용할 안내가 아닙니다."
+    },
+    {
+      "id": "DEMO-003",
+      "title": "[가상·미검토] DEMO PB-300 조건 검토 대기",
+      "brand": "DEMO LAB",
+      "models": ["DEMO PB-300"],
+      "review_status": "pending",
+      "conditions": [],
+      "action": "미검토 공지입니다. 조건 검토가 끝나기 전에는 대상 일치를 확정하지 않습니다."
+    }
+  ]
+}

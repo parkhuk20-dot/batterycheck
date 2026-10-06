@@ -1,0 +1,20 @@
+{
+  "status": "passed",
+  "browser": "cached Chromium headless",
+  "desktop_focus_changed": false,
+  "cases": [
+    "manual_confirmation",
+    "match",
+    "missing_lot",
+    "edit_invalidates_result",
+    "register",
+    "recheck",
+    "emergency_before_query",
+    "action_self_report",
+    "history",
+    "source_outage",
+    "api_outage_keeps_emergency",
+    "mobile_no_overflow"
+  ],
+  "runtime_errors": []
+}

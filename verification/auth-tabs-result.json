@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "cases": [
+    "logout_clears_other_tab",
+    "login_refreshes_other_tab",
+    "account_deletion_clears_other_tab",
+    "late_authorized_history_response_does_not_restore_private_state"
+  ]
+}

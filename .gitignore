@@ -1,0 +1,14 @@
+frontend/node_modules/
+frontend/.next/
+frontend/test-results/
+backend/.data/
+**/__pycache__/
+.venv/
+.DS_Store
+verification/*.png
+verification/*.log
+
+.env
+.env.*
+!.env.example
+dist/

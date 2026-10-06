@@ -1,0 +1,31 @@
+{
+  "destination": "/Users/sejin/Desktop/codyssey/fianl project/batterycheck",
+  "new_directory_only": true,
+  "original_plan_preserved_sha256": "ce1cdd33f1f7aeb3782b9220448197bdd8b6d1c950f3c4e3054df4a4433474be",
+  "verified_files": [
+    "README.md",
+    "docs/IMPLEMENTATION_2026-10-02.md",
+    "shared/safety.json",
+    "frontend/package.json",
+    "frontend/package-lock.json",
+    "frontend/app/page.js",
+    "frontend/app/proxy.mjs",
+    "backend/batterycheck/engine.py",
+    "backend/batterycheck/main.py",
+    "backend/batterycheck/models.py",
+    "backend/batterycheck/store.py",
+    "backend/batterycheck/demo_catalog.json",
+    "backend/tests/test_flow.py",
+    "frontend/tests/proxy.test.mjs",
+    "frontend/tests/browser-e2e.mjs"
+  ],
+  "dependencies": "copied existing offline-installed node_modules; no reinstall",
+  "excluded": [
+    "local SQLite data",
+    "Python cache",
+    "Next build cache",
+    "npm logs",
+    "failed browser snapshots"
+  ],
+  "seconds": 2.54
+}

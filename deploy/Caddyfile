@@ -1,0 +1,5 @@
+{$SITE_ADDRESS} {
+    encode zstd gzip
+    reverse_proxy frontend:3114
+    header Strict-Transport-Security "max-age=31536000"
+}

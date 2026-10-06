@@ -1,0 +1,33 @@
+{
+  "recorded_at": "2026-10-02T15:05:12.382979+00:00",
+  "scope": "실제 공개 HTTP GET 결과. CPSC API 성공 연동 증거가 아님.",
+  "private_data_sent": false,
+  "attempts": [
+    {
+      "url": "https://www.saferproducts.gov/RestWebServices/Recall?format=json&ProductName=power%20bank",
+      "sandbox_result": "DNS resolution restricted",
+      "network_result": "HTTP 503",
+      "successful_json_received": false
+    },
+    {
+      "url": "https://www.saferproducts.gov/RestWebServices/Recall?format=json&RecallNumber=25338",
+      "http_status": 503,
+      "body_bytes": 4112,
+      "response_body_sha256": "db90a97fab71aaac0724b4d3303203193aec2a81bf1ea73363216d5145f095c7",
+      "response_body_encoding": "UTF-16 LE with BOM",
+      "response_body": "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\r\n<html xmlns=\"http://www.w3.org/1999/xhtml\">\r\n<head>\r\n    <title>Under Construction</title>\r\n\t<link href=\"/apology_objects/Common.min.css\" rel=\"Stylesheet\" type=\"text/css\" />\r\n\t<link href=\"/apology_objects/Core.min.css\" rel=\"Stylesheet\" type=\"text/css\" />\r\n\t<link href=\"/apology_objects/SaferProducts.min.css\" rel=\"Stylesheet\" type=\"text/css\" />\r\n\t<style type=\"text/css\">\r\n\t\ta, a:hover, a:visited, a:active\r\n\t\t{\r\n\t\t\tcolor: #069;\r\n\t\t}\r\n\t</style>\r\n</head>\r\n<body>\r\n\t<div class=\"page\">\r\n\t\t\r\n\t\t<h1 style=\"margin: 30px 0 0 50px;\">\r\n\t\t\tSaferProducts.Gov</h1>\r\n\t\t\r\n\t\t<div style=\"position: relative; left: 40px; top: 20px; color: #787878;\">\r\n\t\t\t<div style=\"position: absolute; left: 260px; top:30px; width: 380px;\">\r\n\t\t\t\t<!-- organe board -->\r\n\t\t\t\t<div style=\"position: relative; width: 550px; border: 2px solid #787878; background-color: #069; color: #fff; z-index: 2; padding: 25px 25px;\">\r\n\t\t\t\t\t<h2 style=\"font-family: Georgia; color: #787878; font-size: 25px; z-index: 3; position: absolute; top: -15px; left: 5px;\">\r\n\t\t\t\t\t\tPage Unavailable\r\n\t\t\t\t\t</h2>\r\n\t\t\t\t\t</br>\r\n\t\t\t\t\t   The page you are trying to reach is currently unavailable. Please double check your link and then try this link again soon. If you continue to get this error, you can report it to us at info@cpsc.gov.  \r\n\t\t\t\t\t   <span style='mso-spacerun:yes'>   </span>\r\n\t\t\t\t\t   </p>\r\n\r\n\t\t\t\t</div>\r\n\t\t\t\t\r\n\t\t\t</div>\r\n\r\n\r\n\t\t\t<div style=\"position: absolute; top: 130px; width: 720px; height: 2px; background-color: #787878;\"></div>\r\n\r\n\t\t\t<!-- ASCII art -->\r\n\t\t\t<div style=\"position: absolute; display:none; top: 6px; left: 10px; font-size: 13px;\">\r\n<pre>\r\n                             ___\r\n                     /======/\r\n            ____    //      \\___       ,/\r\n             | \\\\  //           :,   ./\r\n     |_______|__|_//            ;:; /\r\n    _L_____________\\o           ;;;/\r\n____(CCCCCCCCCCCCCC)____________-/____\r\n</pre>\r\n\t\t\t</div>\r\n\r\n\t\t</div>\r\n\r\n\t</div>\r\n</body>\r\n</html>\r\n",
+      "successful_json_received": false
+    }
+  ],
+  "official_web_fallback": {
+    "verified_at": "2026-10-02T14:55:37+00:00",
+    "notice_ids": [
+      "25-338",
+      "26-135"
+    ],
+    "kind": "official_web_curated",
+    "is_api_response": false
+  },
+  "api_smoke": "failed_upstream_503",
+  "adapter_success_path": "covered only by synthetic MockTransport fixtures; not live success"
+}

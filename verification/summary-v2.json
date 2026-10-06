@@ -1,0 +1,373 @@
+{
+  "version": "0.2.0",
+  "date": "2026-10-02",
+  "status": "local_implementation_verified_external_dependencies_remaining",
+  "backend_tests": {
+    "passed": 72,
+    "log": "backend-tests-v2.log"
+  },
+  "proxy_tests": {
+    "passed": 13,
+    "log": "proxy-tests-v2.log"
+  },
+  "build": "passed",
+  "http_integration": "passed",
+  "browser": {
+    "status": "passed",
+    "checked_at": "2026-10-02T15:33:37.994Z",
+    "browser": "existing Chromium headless",
+    "desktop_focus_changed": false,
+    "browser_network_scope": "127.0.0.1:3114 only; service workers blocked for deterministic network-failure tests",
+    "official_api_sync_executed": false,
+    "cases": [
+      "anonymous_vault_requires_authentication",
+      "ui_registration_explicit_privacy_consent",
+      "explicit_notification_opt_in",
+      "model_edit_revokes_confirmation",
+      "model_confirmation",
+      "synthetic_match",
+      "missing_lot",
+      "edit_invalidates_result",
+      "authenticated_save",
+      "recheck_history",
+      "action_self_report_preserves_emergency",
+      "source_outage",
+      "http_failure_keeps_local_emergency",
+      "offline_keeps_local_emergency",
+      "logout_clears_private_screen",
+      "ui_login_restores_own_vault",
+      "logout_clears_login_password",
+      "ocr_clears_previous_conditions_demo_outage_and_history",
+      "real_local_ocr_synthetic_label",
+      "ocr_application_requires_user_confirmation",
+      "official_anker_candidate",
+      "official_link",
+      "serial_and_us_scope_pending_review",
+      "desktop_and_mobile_layout",
+      "two_account_ui_and_api_isolation",
+      "second_account_deleted",
+      "ui_export_own_records_no_password",
+      "delete_unselected_product_clears_its_visible_history",
+      "ui_product_delete_cascades_history",
+      "ui_account_delete_revokes_session_and_login"
+    ],
+    "ocr": {
+      "status": "passed",
+      "engine": "Apple Vision",
+      "fixture": "generated black text on white PNG; no personal photo",
+      "brand": "ANKER",
+      "model": "A1263",
+      "photo_retained": false,
+      "requires_confirmation": true
+    },
+    "runtime_errors": []
+  },
+  "pwa": {
+    "status": "passed",
+    "cached_paths": [
+      "/icon.svg",
+      "/offline.html"
+    ],
+    "cases": [
+      "manifest",
+      "public_only_cache",
+      "offline_navigation",
+      "no_private_offline_records",
+      "offline_emergency_link"
+    ]
+  },
+  "auth_tabs": {
+    "status": "passed",
+    "cases": [
+      "logout_clears_other_tab",
+      "login_refreshes_other_tab",
+      "account_deletion_clears_other_tab",
+      "late_authorized_history_response_does_not_restore_private_state"
+    ]
+  },
+  "ocr_diagnostic": {
+    "scope": "synthetic text-image diagnostic; not independent real-photo accuracy",
+    "metric": "expected brand and complete model both present in candidates; negative control returns no candidates",
+    "total": 7,
+    "correct": 7,
+    "groups": {
+      "clear": {
+        "correct": 2,
+        "total": 2
+      },
+      "identifier_boundary": {
+        "correct": 1,
+        "total": 1
+      },
+      "small_text": {
+        "correct": 1,
+        "total": 1
+      },
+      "rotation": {
+        "correct": 1,
+        "total": 1
+      },
+      "low_contrast": {
+        "correct": 1,
+        "total": 1
+      },
+      "negative_control": {
+        "correct": 1,
+        "total": 1
+      }
+    },
+    "results": [
+      {
+        "id": "clear_anker",
+        "group": "clear",
+        "expected_brand": "ANKER",
+        "expected_model": "A1263",
+        "status": 200,
+        "engine": "Apple Vision",
+        "exact": true,
+        "elapsed_ms": 172,
+        "candidates": {
+          "brands": [
+            "ANKER"
+          ],
+          "models": [
+            "A1263"
+          ]
+        },
+        "confirmation_required": true,
+        "image_retained": false
+      },
+      {
+        "id": "clear_iniu",
+        "group": "clear",
+        "expected_brand": "INIU",
+        "expected_model": "BI-B41",
+        "status": 200,
+        "engine": "Apple Vision",
+        "exact": true,
+        "elapsed_ms": 142,
+        "candidates": {
+          "brands": [
+            "INIU"
+          ],
+          "models": [
+            "BI-B41"
+          ]
+        },
+        "confirmation_required": true,
+        "image_retained": false
+      },
+      {
+        "id": "suffix_preservation",
+        "group": "identifier_boundary",
+        "expected_brand": "ANKER",
+        "expected_model": "A1263-B",
+        "status": 200,
+        "engine": "Apple Vision",
+        "exact": true,
+        "elapsed_ms": 145,
+        "candidates": {
+          "brands": [
+            "ANKER"
+          ],
+          "models": [
+            "A1263-B"
+          ]
+        },
+        "confirmation_required": true,
+        "image_retained": false
+      },
+      {
+        "id": "small_text",
+        "group": "small_text",
+        "expected_brand": "ANKER",
+        "expected_model": "A1263",
+        "status": 200,
+        "engine": "Apple Vision",
+        "exact": true,
+        "elapsed_ms": 142,
+        "candidates": {
+          "brands": [
+            "ANKER"
+          ],
+          "models": [
+            "A1263"
+          ]
+        },
+        "confirmation_required": true,
+        "image_retained": false
+      },
+      {
+        "id": "rotated_text",
+        "group": "rotation",
+        "expected_brand": "INIU",
+        "expected_model": "BI-B41",
+        "status": 200,
+        "engine": "Apple Vision",
+        "exact": true,
+        "elapsed_ms": 147,
+        "candidates": {
+          "brands": [
+            "INIU"
+          ],
+          "models": [
+            "BI-B41"
+          ]
+        },
+        "confirmation_required": true,
+        "image_retained": false
+      },
+      {
+        "id": "low_contrast",
+        "group": "low_contrast",
+        "expected_brand": "ANKER",
+        "expected_model": "A1263",
+        "status": 200,
+        "engine": "Apple Vision",
+        "exact": true,
+        "elapsed_ms": 146,
+        "candidates": {
+          "brands": [
+            "ANKER"
+          ],
+          "models": [
+            "A1263"
+          ]
+        },
+        "confirmation_required": true,
+        "image_retained": false
+      },
+      {
+        "id": "no_identity",
+        "group": "negative_control",
+        "expected_brand": null,
+        "expected_model": null,
+        "status": 200,
+        "engine": "Apple Vision",
+        "exact": true,
+        "elapsed_ms": 149,
+        "candidates": {
+          "brands": [],
+          "models": []
+        },
+        "confirmation_required": true,
+        "image_retained": false
+      }
+    ],
+    "mandatory_confirmation_all": true,
+    "retained_images": false
+  },
+  "official_api_live": {
+    "status": "failed",
+    "http": 503
+  },
+  "worker_live": {
+    "source_status": {
+      "state": "failed",
+      "sources": [
+        {
+          "id": "cpsc",
+          "name": "CPSC 공개 리콜 API",
+          "state": "failed",
+          "last_success_at": null,
+          "last_attempt_at": "2026-10-02T15:21:40.983931+00:00",
+          "scope": "미국 CPSC · ProductName=\"power bank\" 검색 범위 · 전수 조회 아님",
+          "source_url": "https://www.cpsc.gov/Recalls",
+          "synthetic": false,
+          "error": "CPSC 응답 HTTP 503 · 마지막 저장 자료를 유지합니다.",
+          "count": 0,
+          "notices_count": 0
+        },
+        {
+          "id": "cpsc-curated",
+          "name": "CPSC 공식 웹 확인 자료",
+          "state": "curated",
+          "last_success_at": "2026-10-02T14:55:37+00:00",
+          "scope": "공식 웹에서 직접 확인한 공지 2건 · API 조회 아님 · 미국 범위",
+          "source_url": "https://www.cpsc.gov/Recalls",
+          "synthetic": false,
+          "count": 2,
+          "notices_count": 2,
+          "error": null
+        },
+        {
+          "id": "safety-korea",
+          "name": "Safety Korea 국내 리콜",
+          "state": "unconfigured",
+          "last_success_at": null,
+          "scope": "인증키 발급 및 연동 미완료 · 국내 제품은 공식 사이트에서 별도 확인",
+          "source_url": "https://www.safetykorea.kr/recall/recallBoard",
+          "synthetic": false,
+          "setup_url": "https://www.safetykorea.kr/release/openapi2",
+          "notices_count": 0,
+          "error": "이용 승인·인증키·연동 미완료"
+        }
+      ],
+      "notice_count": 2,
+      "notices_count": 2,
+      "catalog_hash": "95eeeeec0afe7f0be29e28ff6ae477d97ad7dd0f101fd8bff2fdebf8c0190fb5",
+      "last_success_at": null,
+      "last_attempt_at": "2026-10-02T15:21:40.983931+00:00",
+      "coverage_complete": false,
+      "freshness_days": 7,
+      "ok": false,
+      "error": "CPSC 응답 HTTP 503 · 마지막 저장 자료를 유지합니다."
+    },
+    "rechecked": 0,
+    "notifications_created": 0,
+    "skipped_changed_products": 0
+  },
+  "agent_self_evaluation": {
+    "average": 3.8,
+    "scale": 5,
+    "not_contest_score": true
+  },
+  "not_verified": [
+    "Safety Korea API integration",
+    "CPSC successful live response",
+    "Docker build and runtime",
+    "Linux Tesseract execution",
+    "public HTTPS deployment",
+    "real photo accuracy",
+    "real users",
+    "safety expert review",
+    "official Codyssey rubric"
+  ],
+  "cleanup": {
+    "users": 0,
+    "sessions": 0,
+    "products": 0,
+    "checks": 0,
+    "actions": 0,
+    "notifications": 0
+  },
+  "public_deployment": false,
+  "external_messages_sent": false,
+  "contest_submission": false,
+  "original_plan_sha256": "ce1cdd33f1f7aeb3782b9220448197bdd8b6d1c950f3c4e3054df4a4433474be",
+  "source_hashes": {
+    "backend/batterycheck/__init__.py": "85aa353133e28bcee35f9462874dd11ed787495c3e0b56fd9b0c54d7c0c63fcc",
+    "backend/batterycheck/auth.py": "f9f0a9d556024a6c0c73c36dff74471a746cabe8c1f4989e5470ead9eb54ce80",
+    "backend/batterycheck/demo_catalog.json": "28518beb795898ab26b5a099c41b38da2ce840a82972023049f9914d94f0db3a",
+    "backend/batterycheck/engine.py": "9e93923bee716732f953dec440797ead484f42eb1f9619107821ca0597513071",
+    "backend/batterycheck/main.py": "ab89a5f376b016f7e020cdb5eb378b12f59eedb95693825e634ea166ff0475b7",
+    "backend/batterycheck/models.py": "d23122048884f92109793a30129caff836322729f36c7dd3067b0b2f2c3890d7",
+    "backend/batterycheck/ocr.py": "704845ad5ae18d80807605d85cb1f4b276ca9da92d6877b25871a2004dbd4f82",
+    "backend/batterycheck/official.py": "672a91126895192e7fa8c4650e608cec8573cb9c1a79ce8f38917d316780639c",
+    "backend/batterycheck/official_catalog.json": "627b9c32a9d2b35aa2a963278d78ab5c33d83b731ce93538171b54c80bd7709d",
+    "backend/batterycheck/safety.py": "608b81e5bc467ff37b1ddd457415ccd723e11990b6d7753be3c5dcfe3619621a",
+    "backend/batterycheck/store.py": "5e0c7f84816d073978f8714e8a73491ae8aa70cb7cfc13f666a4c6f9579ad65e",
+    "backend/batterycheck/vision_ocr.swift": "9f18dc3da6777b2a0e0dc0f2d1abe143ba5e65f39f08e72801f62c25c8229ce5",
+    "backend/batterycheck/worker.py": "742228169a4fb9d315e3762b397a14835537d93eac7d29ae5676428edc2fc14f",
+    "frontend/app/api/[...path]/route.js": "c8aa1c2f55635c063bb3813bf4d6146b356bbe9b52ff46ae06ae39931b956822",
+    "frontend/app/globals.css": "f552dea125e586f8a3cdb2b5c8649d615c032125ebdec038acc2542649c74eea",
+    "frontend/app/layout.js": "00ab6c74526128a78619626a7c2f7cbd8a987caf0bb0eeea39f700bdd95dc8c8",
+    "frontend/app/manifest.js": "9c3f1e47a5820de4e35f7b9e0034cccd0c6ce2d476d6e0091c300434b678c7a6",
+    "frontend/app/page.js": "e21edf78e57703a12488270ac5d6d25ee3805c75dab905573fe9251e2ec5f7d7",
+    "frontend/app/proxy.mjs": "accefc5c40f57384c7827ec922d7de1f8d62a468574f1556e28b40824f9eb915",
+    "frontend/public/icon.svg": "43177b5557eb65efa32aa64c337b37af479e75b4de499f5058aaa6af760e6286",
+    "frontend/public/offline.html": "2b9bafa87b400fe41ab08ff42c87024269e36045e9c5297c396c2752a8e58e33",
+    "frontend/public/sw.js": "cd4cd1ba8fc057c9aad50c2cb088d1e20cb971be002d62e3b66cb22cf646d6f0",
+    "shared/safety.json": "a3b09090734ebff9a3b741d1ddbe1184890a9378ae7d454e8d02dee7a36b2dcc"
+  }
+}

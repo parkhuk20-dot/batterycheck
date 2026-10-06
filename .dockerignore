@@ -1,0 +1,10 @@
+**/node_modules
+**/.next
+**/__pycache__
+**/.data
+.venv
+.env
+.env.*
+verification
+.git
+*.sqlite3*

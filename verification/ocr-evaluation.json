@@ -1,0 +1,172 @@
+{
+  "scope": "synthetic text-image diagnostic; not independent real-photo accuracy",
+  "metric": "expected brand and complete model both present in candidates; negative control returns no candidates",
+  "total": 7,
+  "correct": 7,
+  "groups": {
+    "clear": {
+      "correct": 2,
+      "total": 2
+    },
+    "identifier_boundary": {
+      "correct": 1,
+      "total": 1
+    },
+    "small_text": {
+      "correct": 1,
+      "total": 1
+    },
+    "rotation": {
+      "correct": 1,
+      "total": 1
+    },
+    "low_contrast": {
+      "correct": 1,
+      "total": 1
+    },
+    "negative_control": {
+      "correct": 1,
+      "total": 1
+    }
+  },
+  "results": [
+    {
+      "id": "clear_anker",
+      "group": "clear",
+      "expected_brand": "ANKER",
+      "expected_model": "A1263",
+      "status": 200,
+      "engine": "Apple Vision",
+      "exact": true,
+      "elapsed_ms": 172,
+      "candidates": {
+        "brands": [
+          "ANKER"
+        ],
+        "models": [
+          "A1263"
+        ]
+      },
+      "confirmation_required": true,
+      "image_retained": false
+    },
+    {
+      "id": "clear_iniu",
+      "group": "clear",
+      "expected_brand": "INIU",
+      "expected_model": "BI-B41",
+      "status": 200,
+      "engine": "Apple Vision",
+      "exact": true,
+      "elapsed_ms": 142,
+      "candidates": {
+        "brands": [
+          "INIU"
+        ],
+        "models": [
+          "BI-B41"
+        ]
+      },
+      "confirmation_required": true,
+      "image_retained": false
+    },
+    {
+      "id": "suffix_preservation",
+      "group": "identifier_boundary",
+      "expected_brand": "ANKER",
+      "expected_model": "A1263-B",
+      "status": 200,
+      "engine": "Apple Vision",
+      "exact": true,
+      "elapsed_ms": 145,
+      "candidates": {
+        "brands": [
+          "ANKER"
+        ],
+        "models": [
+          "A1263-B"
+        ]
+      },
+      "confirmation_required": true,
+      "image_retained": false
+    },
+    {
+      "id": "small_text",
+      "group": "small_text",
+      "expected_brand": "ANKER",
+      "expected_model": "A1263",
+      "status": 200,
+      "engine": "Apple Vision",
+      "exact": true,
+      "elapsed_ms": 142,
+      "candidates": {
+        "brands": [
+          "ANKER"
+        ],
+        "models": [
+          "A1263"
+        ]
+      },
+      "confirmation_required": true,
+      "image_retained": false
+    },
+    {
+      "id": "rotated_text",
+      "group": "rotation",
+      "expected_brand": "INIU",
+      "expected_model": "BI-B41",
+      "status": 200,
+      "engine": "Apple Vision",
+      "exact": true,
+      "elapsed_ms": 147,
+      "candidates": {
+        "brands": [
+          "INIU"
+        ],
+        "models": [
+          "BI-B41"
+        ]
+      },
+      "confirmation_required": true,
+      "image_retained": false
+    },
+    {
+      "id": "low_contrast",
+      "group": "low_contrast",
+      "expected_brand": "ANKER",
+      "expected_model": "A1263",
+      "status": 200,
+      "engine": "Apple Vision",
+      "exact": true,
+      "elapsed_ms": 146,
+      "candidates": {
+        "brands": [
+          "ANKER"
+        ],
+        "models": [
+          "A1263"
+        ]
+      },
+      "confirmation_required": true,
+      "image_retained": false
+    },
+    {
+      "id": "no_identity",
+      "group": "negative_control",
+      "expected_brand": null,
+      "expected_model": null,
+      "status": 200,
+      "engine": "Apple Vision",
+      "exact": true,
+      "elapsed_ms": 149,
+      "candidates": {
+        "brands": [],
+        "models": []
+      },
+      "confirmation_required": true,
+      "image_retained": false
+    }
+  ],
+  "mandatory_confirmation_all": true,
+  "retained_images": false
+}
