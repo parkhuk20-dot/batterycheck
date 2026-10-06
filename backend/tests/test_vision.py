@@ -27,7 +27,7 @@ def png():
 
 def reading(**values):
     seen = {'brand': None, 'product_name': None, 'model': None, 'lot_or_batch': None, 'serial_number': None,
-            'image_quality': 'clear', 'confidence': {field: 0.95 for field in vision.FIELDS}}
+            'brand_source': 'visible_logo_text', 'image_quality': 'clear', 'confidence': {field: 0.95 for field in vision.FIELDS}}
     return seen | values
 
 
@@ -62,7 +62,7 @@ class ReadingTests(unittest.TestCase):
             result = vision.combine(ocr(models=local), low)
             self.assertEqual((result['status'], result['model']), ('unsure', None), (local, seen))
             self.assertIn(seen, result['model_candidates'])
-        self.assertEqual(vision.combine(ocr(models=['A-1263']), reading(model='a1263'))['status'], 'found')
+        self.assertEqual(vision.combine(ocr(models=['A-1263']), reading(model='a1263'))['status'], 'model_only')
 
     def test_reply_wrapped_in_a_code_block_is_parsed(self):
         seen = vision.parse_reply('결과입니다.\n```json\n{"brand": "Anker", "model": "A1263", "product_name": null, "extra": 1,\n"confidence": {"model": 0.9}}\n```\n끝')
@@ -70,6 +70,32 @@ class ReadingTests(unittest.TestCase):
         self.assertEqual((seen['confidence']['model'], seen['confidence']['brand'], seen['image_quality']), (0.9, 0.0, 'clear'))
         self.assertNotIn('extra', seen)
         self.assertIsNone(vision.parse_reply('읽지 못했습니다')['model'])
+
+    def test_brand_cues_from_label_text(self):
+        from batterycheck.ocr import candidates_from_text
+        baseus = candidates_from_text(['Baseu5', 'Power Bank', 'Model NO.: BS-30KP365', 'Shenzhen Baseus Technology Co., Ltd.'])
+        self.assertEqual((baseus['brand_candidates'][0], baseus['model_candidates'][0]), ('BASEUS', 'BS-30KP365'))
+        casely = candidates_from_text(['Power Pod', 'Model E33A', 'GETCASELY.COM'])
+        self.assertEqual((casely['brand_candidates'], casely['brand_sources'], casely['model_candidates']), (['CASELY'], {'CASELY': 'website_domain'}, ['E33A']))
+        domain = candidates_from_text(['Model: ZX-200', 'www.getvoltix.com'])
+        self.assertEqual(domain['brand_sources'], {'VOLTIX': 'website_domain'})
+        maker = candidates_from_text(['Model: Q1', 'Shenzhen Lumora Technology Co., Ltd.'])
+        self.assertEqual(maker['brand_sources'], {'LUMORA': 'manufacturer_text'})
+        self.assertEqual(candidates_from_text(['POWER BANK', 'Input 5V', 'Model: Q1'])['brand_candidates'], [])
+        found = vision.combine(casely, None)
+        self.assertEqual((found['status'], found['brand'], found['brand_raw'], found['model']), ('found', 'Casely', 'CASELY', 'E33A'))
+
+    def test_model_without_brand_is_completed_from_official_notices(self):
+        only = vision.combine(ocr(models=['BS-30KP365']), None)
+        self.assertEqual((only['status'], only['brand'], only['model']), ('model_only', None, 'BS-30KP365'))
+        filled = vision.enrich(only, ['Baseus'])
+        self.assertEqual((filled['status'], filled['brand'], filled['brand_source']), ('found_db', 'Baseus', 'db_enrichment'))
+        self.assertIn('Baseus 제품으로 확인됩니다', filled['message'])
+        several = vision.enrich(only, ['Casely', '다른 브랜드'])
+        self.assertEqual((several['status'], several['brand'], several['brand_options']), ('choose', None, ['Casely', '다른 브랜드']))
+        self.assertEqual(vision.enrich(only, [])['status'], 'model_only')
+        self.assertEqual(vision.combine(ocr(['BASEUS']), None)['status'], 'brand_only')
+        self.assertEqual(vision.combine(ocr(), None)['status'], 'not_found')
 
     def test_without_ai_the_local_reading_is_used_alone(self):
         result = vision.combine(ocr(['ANKER'], ['A1263']), None)

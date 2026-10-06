@@ -73,9 +73,16 @@ class OfficialTests(unittest.TestCase):
         self.assertEqual(notice['outcome'], 'pending_review')
 
     def test_unconfirmed_and_unsupported_identification_is_not_searched(self):
-        for changes in ({'brand': ''}, {'model': ''}, {'model_confirmed': False}, {'product_kind': 'other'}):
+        for changes in ({'model': ''}, {'model_confirmed': False}, {'product_kind': 'other'}):
             self.assertEqual(self.service().evaluate(product(**changes))['status'], 'needs_identification')
         self.assertEqual(self.requests, [])
+
+    def test_a_missing_brand_does_not_block_the_model_lookup(self):
+        result = self.service().evaluate(product(brand=''))
+        self.assertEqual(result['status'], 'needs_information')
+        self.assertEqual({c['field']: c['state'] for c in result['notices'][0]['checks']}['brand'], 'unknown')
+        self.assertEqual(self.service().brands_for_model('a1263'), ['Anker'])
+        self.assertEqual(self.service().brands_for_model('A1263X'), [])
 
     def test_sync_calls_only_fixed_public_filter_and_persists_original(self):
         service = self.service()

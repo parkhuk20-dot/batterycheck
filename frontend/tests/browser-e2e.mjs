@@ -189,11 +189,11 @@ try {
     assert.ok(payload.model_candidates.includes('A1263'));
     await waitText(page.locator('.ocr-result'), 'A1263');
     await waitText(page.locator('.ocr-result'), '이 정보가 맞나요?');
-    assert.equal(await page.getByLabel('브랜드', { exact: true }).inputValue(), 'DEMO LAB', 'a photo reading is not applied before the user confirms it');
+    assert.equal(await page.getByLabel(/^브랜드/).inputValue(), 'DEMO LAB', 'a photo reading is not applied before the user confirms it');
     const candidateRequest = page.waitForRequest(request => request.url() === base + '/api/checks' && request.method() === 'POST');
     await page.getByRole('button', { name: '맞아요, 리콜 확인', exact: true }).click();
     const sent = (await candidateRequest).postDataJSON();
-    assert.deepEqual([sent.brand, sent.model, sent.model_confirmed, sent.scenario, sent.demo, sent.lot, sent.signs], ['ANKER', 'A1263', true, 'complete', false, null, []]);
+    assert.deepEqual([sent.brand, sent.model, sent.model_confirmed, sent.scenario, sent.demo, sent.lot, sent.signs], ['Anker', 'A1263', true, 'complete', false, null, []]);
     assert.equal(await page.getByLabel('가상 DEMO LAB 제품으로 시연합니다.', { exact: true }).isChecked(), false);
     assert.equal(await page.getByLabel('데모 출처 상태', { exact: false }).count(), 0);
     assert.equal(await page.getByLabel(/^제조일 /).inputValue(), '');
@@ -208,9 +208,9 @@ try {
     cases.push('real_local_ocr_synthetic_label', 'photo_reading_requires_user_confirmation');
   } else {
     ocrEvidence = { status: 'not_available', reason: 'meta.ocr.available=false; no OCR success claim' };
-    await page.getByLabel('브랜드', { exact: true }).fill('ANKER');
+    await page.getByLabel(/^브랜드/).fill('ANKER');
     await page.getByLabel('가상 DEMO LAB 제품으로 시연합니다.', { exact: true }).uncheck();
-    await page.getByLabel('브랜드', { exact: true }).fill('ANKER');
+    await page.getByLabel(/^브랜드/).fill('ANKER');
     await page.getByLabel('모델명', { exact: true }).fill('A1263');
   }
   await page.getByRole('button', { name: '리콜 정보 확인', exact: true }).click();

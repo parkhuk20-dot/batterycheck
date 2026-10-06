@@ -302,6 +302,13 @@ class OfficialService:
                          "scope": f"국내 리콜 공지 중 제품명에 '{self.kr_query}'가 들어간 {len(notices)}건",
                          "notices_count": len(notices), "count": len(notices), "error": meta.get("error")}
 
+    def brands_for_model(self, model):
+        """Brands that official notices list for exactly this model; used to fill in a brand a photo did not show."""
+        _, _, _, notices = self._load()
+        brands = [notice["brands"][0] for notice in notices
+                  if notice.get("brands") and _norm(model) in {_norm(m) for m in notice.get("models", [])}]
+        return list(dict.fromkeys(brands))
+
     def documents(self):
         """Retrieval corpus for the assistant: stored notices only, no network."""
         _, _, _, notices = self._load()
@@ -389,9 +396,10 @@ class OfficialService:
                   "limitations": "지금은 미국(CPSC) 공식 리콜 공지 일부만 확인할 수 있습니다. 국내(Safety Korea) 정보는 아직 연결되지 않았습니다. 리콜 공지를 찾지 못했다고 해서 제품이 반드시 안전한 것은 아닙니다.",
                   "next_action": "확인할 수 있는 공지에서는 이 제품을 찾지 못했습니다. 리콜이 없다는 뜻은 아니니 Safety Korea와 제조사 사이트에서도 확인해주세요.",
                   "coverage_complete": False}
-        if not product.brand or not product.model or not product.model_confirmed or product.product_kind != "power_bank":
+        # The model identifies a recall notice; a missing brand narrows nothing and must not block the lookup.
+        if not product.model or not product.model_confirmed or product.product_kind != "power_bank":
             result.update(status="needs_identification", label=LABELS["needs_identification"],
-                          next_action="제품 라벨에서 브랜드와 모델명을 확인해 입력해주세요. 사진에서 읽은 값은 라벨과 같은지 확인이 필요합니다.")
+                          next_action="제품 라벨에서 모델명을 확인해 입력해주세요. 사진에서 읽은 값은 라벨과 같은지 확인이 필요합니다.")
             return result
         domestic = next(source for source in status["sources"] if source["id"] == "safety-korea")
         if domestic["state"] == "available":
@@ -403,14 +411,17 @@ class OfficialService:
                 # Domestic notices often write the brand in Korean or name the importer, so only the model must match exactly.
                 candidate = _norm(product.model) in {_norm(m) for m in notice["models"]}
                 known = [_norm(b) for b in notice["brands"]]
-                brand_state = "match" if any(_norm(product.brand) in b or b in _norm(product.brand) for b in known) else "unknown"
+                brand_state = "match" if product.brand and any(_norm(product.brand) in b or b in _norm(product.brand) for b in known) else "unknown"
             elif notice["evidence_kind"] == "official_web_curated":
-                candidate = _norm(product.brand) in {_norm(b) for b in notice["brands"]} and _norm(product.model) in {_norm(m) for m in notice["models"]}
+                candidate = _norm(product.model) in {_norm(m) for m in notice["models"]} and (
+                    not product.brand or _norm(product.brand) in {_norm(b) for b in notice["brands"]})
+                brand_state = "match" if product.brand else "unknown"
             else:
-                candidate = _token(product.brand, notice["search_text"]) and _token(product.model, notice["search_text"])
+                candidate = _token(product.model, notice["search_text"]) and (not product.brand or _token(product.brand, notice["search_text"]))
+                brand_state = "match" if product.brand else "unknown"
             if not candidate:
                 continue
-            checks = [{"field": "brand", "state": brand_state, "input": product.brand, "expected": notice.get("brands") or [product.brand], "basis": "공식 공지 내 식별자 후보 · 자격 확인 아님"},
+            checks = [{"field": "brand", "state": brand_state, "input": product.brand or None, "expected": notice.get("brands") or [product.brand or "공지 확인"], "basis": "공식 공지 내 식별자 후보 · 자격 확인 아님"},
                       {"field": "model", "state": "match", "input": product.model, "expected": [product.model], "basis": "접미사·하이픈을 보존한 모델 식별자 대조"}]
             for condition in notice.get("conditions", []):
                 # Serial numbers intentionally stay on the manufacturer's site, not the user's lot field.

@@ -71,7 +71,7 @@ try {
   assert.equal(await second.locator('section[aria-label="로그인"]').count(), 1);
   assert.equal(await second.locator('.history').count(), 0, 'late authorized history must not repopulate an anonymous tab');
   assert.equal(await second.locator('.saved-product').count(), 0);
-  assert.equal(await second.getByLabel('브랜드', { exact: true }).inputValue(), '');
+  assert.equal(await second.getByLabel(/^브랜드/).inputValue(), '');
   await second.unroute(historyUrl);
   await first.getByLabel('아이디', { exact: true }).fill(username);
   await first.getByLabel('비밀번호', { exact: true }).fill(password);

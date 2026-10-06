@@ -242,16 +242,19 @@ def create_app(db_path=None, catalog_path=CATALOG_PATH, clock=None, official_ser
                 if not (local and (local.get('model_candidates') or local.get('brand_candidates'))):
                     raise HTTPException(502, vision.FAILURE) from None
         reading = vision.combine(local, seen)
+        if reading['model'] and hasattr(app.state.official_service, 'brands_for_model'):
+            reading = vision.enrich(reading, app.state.official_service.brands_for_model(reading['model']))
         reply = (local or {'requires_confirmation': True, 'model_confirmed': False, 'photo_retained': False, 'engine': None}) | reading
         reply['processing'] = 'ai' if seen else 'local'
         reply['ai_hint'] = bool(app.state.assistant.vision and app.state.assistant.available() and not user['ai_consent'])
+        reply.pop('brand_sources', None)
         if not vision.DEBUG:
             reply.pop('text', None)  # Raw label text can include a serial number.
         return reply
 
     def validate_save(body):
         if not body.brand or not body.model or not body.model_confirmed or body.product_kind != 'power_bank':
-            raise HTTPException(422, '브랜드와 모델명을 입력한 뒤 저장해주세요.')
+            raise HTTPException(422, '브랜드와 모델명을 모두 입력한 뒤 저장해주세요.')
         if body.demo and (normalize(body.brand) != 'DEMO LAB' or not normalize(body.model).startswith('DEMO PB-')):
             raise HTTPException(422, '연습용 예시는 예시 제품으로만 저장할 수 있습니다.')
         if not body.demo and (normalize(body.brand) == 'DEMO LAB' or body.scenario != 'complete'):

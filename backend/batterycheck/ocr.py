@@ -1,6 +1,7 @@
 """On-device OCR with mandatory user confirmation; photos are never retained."""
 import base64
 import binascii
+import difflib
 import hashlib
 import json
 import os
@@ -74,12 +75,45 @@ def _vision_binary():
     return binary
 
 
+# Display spelling for brands that labels print in capitals or as a logo.
+BRANDS = {'ANKER': 'Anker', 'BASEUS': 'Baseus', 'BELKIN': 'Belkin', 'UGREEN': 'UGREEN', 'SAMSUNG': 'Samsung', 'XIAOMI': 'Xiaomi',
+          'ROMOSS': 'ROMOSS', 'INIU': 'INIU', 'CASELY': 'Casely', 'AUKEY': 'AUKEY', 'MOPHIE': 'mophie', 'RAVPOWER': 'RAVPower',
+          'VEGER': 'VEGER', 'CHARMAST': 'Charmast', 'DEMO LAB': 'DEMO LAB'}
+_GENERIC = {'POWER', 'BANK', 'MODEL', 'INPUT', 'OUTPUT', 'CAPACITY', 'BATTERY', 'MADE', 'CHINA', 'RATED', 'TYPE', 'USB', 'LITHIUM'}
+
+
+def brand_guesses(lines):
+    """Brand candidates with where each came from. A label rarely says "Brand:", so several cues are tried in order."""
+    text = '\n'.join(lines).upper()
+    found = []
+
+    def add(raw, source):
+        key = re.sub(r'[^A-Z0-9 ]', '', raw.upper()).strip()
+        if len(key) >= 3 and key not in _GENERIC and all(key != seen for seen, _ in found):
+            found.append((key, source))
+    for known in BRANDS:
+        if re.search(r'(?<![A-Z0-9])' + re.escape(known) + r'(?![A-Z0-9])', text):
+            add(known, 'label_text')
+    for name in re.findall(r'(?:SHENZHEN|GUANGZHOU|DONGGUAN|GUANGDONG|HONG KONG)\s+([A-Z][A-Z0-9]{2,})\s+(?:TECHNOLOGY|ELECTRONICS?|INNOVATIONS?|INDUSTR)', text):
+        add(name, 'manufacturer_text')
+    for domain in re.findall(r'(?:WWW\.|@)?([A-Z0-9][A-Z0-9-]{2,})\.(?:COM|NET|SHOP|STORE|IO|CO\.KR|KR)(?![A-Z])', text):
+        name = re.sub(r'^(?:GET|SHOP|MY|TRY|WWW)(?=[A-Z]{4,})', '', domain.replace('-', ''))
+        add(name, 'website_domain')
+    # Logo lettering is often misread by one character (BASEU5, 8ASEUS).
+    for word in dict.fromkeys(re.findall(r'[A-Z0-9]{4,10}', text)):
+        close = difflib.get_close_matches(word, [b for b in BRANDS if ' ' not in b], n=1, cutoff=0.8)
+        if close and word not in _GENERIC:
+            add(close[0], 'visible_logo_text')
+    return found
+
+
+def display_brand(raw):
+    return BRANDS.get(raw.upper(), raw.title() if raw.isupper() else raw) if raw else None
+
+
 def candidates_from_text(lines):
     text = '\n'.join(lines)[:16000]
-    brands = []
-    for known in ['ANKER', 'BELKIN', 'BASEUS', 'UGREEN', 'SAMSUNG', 'XIAOMI', 'ROMOSS', 'INIU', 'DEMO LAB']:
-        if re.search(r'(?<![A-Z0-9])' + re.escape(known) + r'(?![A-Z0-9])', text.upper()):
-            brands.append(known)
+    guesses = brand_guesses(lines)
     models = []
     for line in lines:
         match = re.search(r'(?:model(?:\s*(?:no\.?|number))?|모델(?:명)?|제품명)\s*[:：#]?\s*([A-Za-z0-9][A-Za-z0-9._ /-]{1,60})', line, re.I)
@@ -88,7 +122,8 @@ def candidates_from_text(lines):
             if any(c.isdigit() for c in value):
                 models.append(value)
         models.extend(re.findall(r'(?<![A-Za-z0-9._-])A\d{4}[A-Za-z0-9._-]*(?![A-Za-z0-9._-])', line, re.I))
-    return {'text': text, 'brand_candidates': list(dict.fromkeys(brands))[:8],
+    return {'text': text, 'brand_candidates': [brand for brand, _ in guesses][:8],
+            'brand_sources': dict(guesses[:8]),
             'model_candidates': list(dict.fromkeys(models))[:8], 'requires_confirmation': True,
             'model_confirmed': False, 'photo_retained': False,
             'limitations': '사진에서 읽은 값은 틀릴 수 있습니다. 라벨과 같은지 꼭 확인해주세요.'}
@@ -120,16 +155,23 @@ def extract_label(image_base64):
         with tempfile.TemporaryDirectory(prefix='batterycheck-label-') as folder:
             image = Path(folder) / ('label.png' if data.startswith(b'\x89PNG') else 'label.jpg')
             image.write_bytes(data)
-            if status['engine'] == 'Apple Vision':
-                cmd = [str(_vision_binary()), str(image)]
-            else:
-                cmd = ['tesseract', str(image), 'stdout', '-l', 'eng', '--psm', '6']
             try:
-                completed = subprocess.run(cmd, check=True, timeout=25, capture_output=True, text=True)
-                lines = json.loads(completed.stdout)['lines'] if status['engine'] == 'Apple Vision' else completed.stdout.splitlines()
+                if status['engine'] == 'Apple Vision':
+                    completed = subprocess.run([str(_vision_binary()), str(image)], check=True, timeout=25, capture_output=True, text=True)
+                    lines = json.loads(completed.stdout)['lines']
+                    result = candidates_from_text(lines)
+                else:
+                    # Block mode reads spec tables; sparse mode picks up a lone logo or a small "Model" line the block pass skips.
+                    lines = []
+                    for mode in ('6', '11'):
+                        completed = subprocess.run(['tesseract', str(image), 'stdout', '-l', 'eng', '--psm', mode],
+                                                   check=True, timeout=12, capture_output=True, text=True)
+                        lines += [line for line in completed.stdout.splitlines() if line.strip()]
+                        result = candidates_from_text(lines)
+                        if result['brand_candidates'] and result['model_candidates']:
+                            break
             except (OSError, subprocess.SubprocessError, ValueError, KeyError) as exc:
                 raise HTTPException(422, '사진을 읽지 못했습니다. 라벨이 선명하게 보이도록 다시 촬영하거나 직접 입력해주세요.') from exc
-        result = candidates_from_text(lines)
         result.update(engine=status['engine'], processing='local')
         return result
     finally:
