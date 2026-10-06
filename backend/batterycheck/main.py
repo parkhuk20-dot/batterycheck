@@ -35,7 +35,7 @@ def create_app(db_path=None, catalog_path=CATALOG_PATH, clock=None, official_ser
     app.state.auth = Auth(app.state.store)
     app.state.limiter = RateLimiter()
     app.state.catalog_path = catalog_path
-    app.state.official_service = official_service if official_service is not None else OfficialService(Path(path).parent / 'official')
+    app.state.official_service = official_service if official_service is not None else OfficialService(Path(path).parent / 'official', auto_refresh=True)
     app.state.sync_lock = threading.Lock()
     secure_cookie = os.environ.get('BATTERYCHECK_COOKIE_SECURE', '0').lower() in {'1', 'true'}
 
@@ -244,6 +244,9 @@ def create_app(db_path=None, catalog_path=CATALOG_PATH, clock=None, official_ser
         reading = vision.combine(local, seen)
         if reading['model'] and hasattr(app.state.official_service, 'brands_for_model'):
             reading = vision.enrich(reading, app.state.official_service.brands_for_model(reading['model']))
+        elif reading['status'] == 'brand_only' and hasattr(app.state.official_service, 'models_for_product'):
+            # No model on the photo: offer the models official notices list for this brand, for the user to compare with the label.
+            reading['model_options'] = app.state.official_service.models_for_product(reading['brand'], reading.get('product_name'))
         reply = (local or {'requires_confirmation': True, 'model_confirmed': False, 'photo_retained': False, 'engine': None}) | reading
         reply['processing'] = 'ai' if seen else 'local'
         reply['ai_hint'] = bool(app.state.assistant.vision and app.state.assistant.available() and not user['ai_consent'])

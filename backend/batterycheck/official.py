@@ -18,6 +18,11 @@ from .safety import risk_guidance
 
 API_URL = "https://www.saferproducts.gov/RestWebServices/Recall"
 API_PARAMS = {"format": "json", "ProductName": "power bank"}
+# Fixed product-name filters; recalls are published under either wording. No user input is ever sent.
+API_QUERIES = ("power bank", "portable charger")
+CPSC_RETRY = timedelta(minutes=10)
+_GENERIC_WORDS = {"POWER", "PORTABLE", "WIRELESS", "MAGNETIC", "SOLAR", "MINI", "BANK", "BANKS", "CHARGER", "CHARGERS", "MODEL",
+                  "LITHIUM", "LITHIUM-ION", "BATTERY", "USB", "AND", "THE", "RECALLS", "RECALLED"}
 CURATED_PATH = Path(__file__).with_name("official_catalog.json")
 MAX_BYTES = 4 * 1024 * 1024
 MAX_RECORDS = 2000
@@ -47,6 +52,19 @@ def _norm(value):
 def _token(needle, text):
     # Model punctuation and suffixes are identity, not fuzzy-search noise.
     return bool(re.search(r"(?<![\w-])" + re.escape(_norm(needle)) + r"(?![\w-])", _norm(text)))
+
+
+def _loose(value):
+    # Spacing and hyphens vary between a label and a notice (E33A, E-33A, E 33A); any other character must be equal.
+    return re.sub(r"[\s-]", "", _norm(value))
+
+
+def _has_model(model, notice):
+    wanted = _loose(model)
+    if any(_loose(m) == wanted for m in notice.get("models", [])):
+        return True
+    words = re.findall(r"[A-Z0-9][A-Z0-9 -]*[A-Z0-9]|[A-Z0-9]", _norm(notice.get("search_text", "")))
+    return _token(model, notice.get("search_text", "")) or any(_loose(w) == wanted for word in words for w in (word, *word.split()))
 
 
 def _official_url(value):
@@ -121,7 +139,22 @@ def _api_notice(record, fetched_at):
     published = record.get("RecallDate")
     if not isinstance(published, str) or not published:
         raise ValueError("missing_publish_date")
+    brands = []
+    makers = [company["Name"] for key in ("Manufacturers", "Importers", "Distributors") for company in (record.get(key) or [])
+              if isinstance(company, dict) and isinstance(company.get("Name"), str) and company["Name"].strip()]
+    for item in record.get("Products") or []:
+        # "Casely Wireless Portable Power Banks" -> "Casely": the leading words before a generic product word.
+        lead = []
+        for word in (item.get("Name") or "").split():
+            if word.strip(",.()").upper() in _GENERIC_WORDS or any(c.isdigit() for c in word):
+                break
+            lead.append(word)
+        if 0 < len(lead) <= 3:
+            # "Anker PowerCore" is brand + product line when the maker is "Anker Innovations Limited".
+            brands.append(lead[0] if len(lead) > 1 and any(_norm(lead[0]) == _norm(name.split()[0].strip(",.")) for name in makers) else " ".join(lead))
+    models = re.findall(r"(?i:model(?:s| numbers?| nos?\.?)?)[:\s]+([A-Z0-9][A-Z0-9-]{2,})(?![a-z])", "\n".join(search))
     return {
+        "brands": list(dict.fromkeys(brands)), "models": list(dict.fromkeys(m for m in models if any(c.isdigit() for c in m))),
         "id": "cpsc-" + str(identity), "title": record["Title"], "source_url": record["URL"],
         "source_id": "cpsc", "published_at": published,
         "last_publish_at": record.get("LastPublishDate"), "fetched_at": fetched_at,
@@ -152,12 +185,14 @@ def _kr_notice(record, fetched_at):
 
 
 class OfficialService:
-    def __init__(self, data_dir, *, transport=None, clock=None, curated_path=CURATED_PATH):
+    def __init__(self, data_dir, *, transport=None, clock=None, curated_path=CURATED_PATH, auto_refresh=False):
         self.data_dir = Path(data_dir)
         self.transport = transport
         self.clock = clock or (lambda: datetime.now(timezone.utc))
         self.curated_path = Path(curated_path)
         self.lock = threading.Lock()
+        # Serverless instances start with an empty cache; with auto_refresh the first lookup fetches the public lists itself.
+        self.auto_refresh = auto_refresh
         self.kr_key = os.environ.get("SAFETYKOREA_API_KEY", "").strip()
         self.kr_query = os.environ.get("SAFETYKOREA_QUERY", "보조배터리").strip()
 
@@ -215,6 +250,16 @@ class OfficialService:
         _atomic(self.data_dir / "safetykorea-status.json", {"state": "failed", "last_attempt_at": now, "error": error})
         return False
 
+    def _refresh_cpsc_if_due(self):
+        if not self.auto_refresh:
+            return
+        cache, meta, _, _ = self._load()
+        now = self.clock()
+        attempted = _time(meta.get("last_attempt_at"))
+        if _fresh(cache.get("fetched_at"), now) or (attempted and now - attempted < CPSC_RETRY):
+            return
+        self._sync_cpsc()
+
     def _refresh_kr_if_due(self):
         # Serverless instances start with an empty cache, so the first lookup fills it instead of waiting for a manual refresh.
         if not self.kr_key:
@@ -260,6 +305,12 @@ class OfficialService:
                     curated_notices.append(item)
         # A newer API copy takes precedence over manually captured evidence at the same URL.
         urls = {notice["source_url"] for notice in notices}
+        # The API copy is the current text; the reviewed copy of the same notice supplies its checked conditions and identifiers.
+        reviewed = {notice["source_url"]: notice for notice in curated_notices}
+        for notice in notices:
+            extra = reviewed.get(notice["source_url"])
+            if extra:
+                notice.update({key: extra[key] for key in ("conditions", "action", "manufacturer_url", "brands", "models") if extra.get(key)})
         combined = notices + [notice for notice in curated_notices if notice["source_url"] not in urls] + self._load_kr()[2]
         return cache, meta, curated_notices, sorted(combined, key=lambda notice: notice["id"])
 
@@ -304,10 +355,24 @@ class OfficialService:
 
     def brands_for_model(self, model):
         """Brands that official notices list for exactly this model; used to fill in a brand a photo did not show."""
+        self._refresh_cpsc_if_due()
         _, _, _, notices = self._load()
         brands = [notice["brands"][0] for notice in notices
-                  if notice.get("brands") and _norm(model) in {_norm(m) for m in notice.get("models", [])}]
-        return list(dict.fromkeys(brands))
+                  if notice.get("brands") and _has_model(model, notice)]
+        return list(dict.fromkeys(b.title() if b.isupper() and len(b) > 4 else b for b in brands))
+
+    def models_for_product(self, brand, product_name=None):
+        """Official notices for a brand (and product name) whose model the photo did not show; candidates to check, not a match."""
+        _, _, _, notices = self._load()
+        found = []
+        for notice in notices:
+            text = _norm(notice.get("search_text") or notice["title"] + " " + " ".join(notice.get("brands", [])))
+            if not any(_norm(brand) == _norm(b) for b in notice.get("brands", [])) and not _token(brand, text):
+                continue
+            if product_name and _norm(product_name) not in text:
+                continue
+            found.extend((notice["brands"][0] if notice.get("brands") else brand, model) for model in notice.get("models", []))
+        return [{"brand": b, "model": m} for b, m in dict.fromkeys(found)][:5]
 
     def documents(self):
         """Retrieval corpus for the assistant: stored notices only, no network."""
@@ -339,23 +404,33 @@ class OfficialService:
             error = "공식 API 조회 실패"
             for attempt in range(2):
                 try:
+                    raw, merged = b"", {}
                     with httpx.Client(timeout=httpx.Timeout(12, connect=5), follow_redirects=False,
                                       transport=self.transport) as client:
-                        with client.stream("GET", API_URL, params=API_PARAMS,
-                                           headers={"Accept": "application/json", "User-Agent": "BatteryCheck/1.0 (public recall research)"}) as response:
-                            response.raise_for_status()
-                            if int(response.headers.get("content-length", "0")) > MAX_BYTES:
-                                raise ValueError("response_too_large")
-                            chunks, size = [], 0
-                            for chunk in response.iter_bytes():
-                                size += len(chunk)
-                                if size > MAX_BYTES:
+                        for query in API_QUERIES:
+                            with client.stream("GET", API_URL, params=API_PARAMS | {"ProductName": query},
+                                               headers={"Accept": "application/json", "User-Agent": "BatteryCheck/1.0 (public recall research)"}) as response:
+                                response.raise_for_status()
+                                if int(response.headers.get("content-length", "0")) > MAX_BYTES:
                                     raise ValueError("response_too_large")
-                                chunks.append(chunk)
-                            raw = b"".join(chunks)
-                    records = json.loads(raw)
-                    if not isinstance(records, list) or len(records) > MAX_RECORDS:
-                        raise ValueError("invalid_catalog_shape")
+                                chunks, size = [], 0
+                                for chunk in response.iter_bytes():
+                                    size += len(chunk)
+                                    if size > MAX_BYTES:
+                                        raise ValueError("response_too_large")
+                                    chunks.append(chunk)
+                            part = b"".join(chunks)
+                            raw += part
+                            found = json.loads(part)
+                            if not isinstance(found, list) or len(found) > MAX_RECORDS:
+                                raise ValueError("invalid_catalog_shape")
+                            keys = [str(r.get("RecallNumber") or r.get("RecallID")) if isinstance(r, dict) else None for r in found]
+                            if None in keys or len(set(keys)) != len(keys):
+                                raise ValueError("duplicate_recall_id")
+                            for record in found:
+                                # The same recall can come back under both wordings; keep one copy.
+                                merged.setdefault(str(record.get("RecallNumber") or record.get("RecallID")), record)
+                    records = list(merged.values())
                     parsed = [_api_notice(record, now) for record in records]
                     if len({n["id"] for n in parsed}) != len(parsed):
                         raise ValueError("duplicate_recall_id")
@@ -363,7 +438,7 @@ class OfficialService:
                     records_hash = _digest(records)
                     cache = {"fetched_at": now, "records": records, "records_hash": records_hash,
                              "response_hash": hashlib.sha256(raw).hexdigest(),
-                             "request_url": API_URL, "request_params": API_PARAMS}
+                             "request_url": API_URL, "request_params": API_PARAMS | {"ProductName": list(API_QUERIES)}}
                     revision_path = self.data_dir / "revisions" / (records_hash + ".json")
                     if not revision_path.exists():
                         _atomic(revision_path, cache)
@@ -385,7 +460,9 @@ class OfficialService:
             return self.status() | {"ok": False, "error": error}
 
     def evaluate(self, product: ProductInput):
-        self._refresh_kr_if_due()
+        if product.model and product.model_confirmed and product.product_kind == "power_bank":
+            self._refresh_cpsc_if_due()
+            self._refresh_kr_if_due()
         now = self.clock()
         status = self.status()
         _, _, _, notices = self._load()
@@ -409,15 +486,15 @@ class OfficialService:
             brand_state = "match"
             if notice["evidence_kind"] == "official_api_kr":
                 # Domestic notices often write the brand in Korean or name the importer, so only the model must match exactly.
-                candidate = _norm(product.model) in {_norm(m) for m in notice["models"]}
+                candidate = _has_model(product.model, notice)
                 known = [_norm(b) for b in notice["brands"]]
                 brand_state = "match" if product.brand and any(_norm(product.brand) in b or b in _norm(product.brand) for b in known) else "unknown"
             elif notice["evidence_kind"] == "official_web_curated":
-                candidate = _norm(product.model) in {_norm(m) for m in notice["models"]} and (
+                candidate = _has_model(product.model, notice) and (
                     not product.brand or _norm(product.brand) in {_norm(b) for b in notice["brands"]})
                 brand_state = "match" if product.brand else "unknown"
             else:
-                candidate = _token(product.model, notice["search_text"]) and (not product.brand or _token(product.brand, notice["search_text"]))
+                candidate = _has_model(product.model, notice) and (not product.brand or _token(product.brand, notice["search_text"]))
                 brand_state = "match" if product.brand else "unknown"
             if not candidate:
                 continue
@@ -432,7 +509,7 @@ class OfficialService:
                            "expected": ["공식 공지와 제조사 안내 확인"], "basis": "자동으로 찾은 공지이며 직접 확인 필요"})
             result["questions"].append({"notice_id": notice["id"], "field": "notice_review",
                                         "text": "모델명이 같아도 모두 리콜 대상은 아닙니다. 공식 공지와 제조사 페이지에서 내 제품이 해당하는지 확인해주세요."})
-            item = {key: value for key, value in notice.items() if key not in {"raw", "search_text", "brands", "excerpts"}}
+            item = {key: value for key, value in notice.items() if key not in {"raw", "search_text", "brands", "models", "excerpts"}}
             item.update(checks=checks, outcome="pending_review", review_status="pending", stale=not _fresh(notice["fetched_at"], now))
             result["notices"].append(item)
         if result["notices"]:
@@ -443,4 +520,7 @@ class OfficialService:
                               next_action="모델명이 같은 공식 리콜 공지가 있습니다. 구매 국가와 일련번호까지 맞아야 리콜 대상입니다. 아래 공식 공지에서 확인해주세요.")
         if status["state"] == "failed":
             result["next_action"] += " 최신 리콜 정보를 불러오는 데 실패해 저장된 정보로 확인했습니다."
+        if not result["notices"] and status["state"] in {"failed", "not_synced"} and not status["sources"][0]["count"]:
+            # An empty list is not a negative result: say the data is missing, not that nothing was found.
+            result["next_action"] = "공식 리콜 데이터를 아직 불러오지 못했습니다. 현재 리콜 여부를 확인할 수 없습니다. 잠시 후 다시 확인해주세요."
         return result

@@ -42,7 +42,7 @@ export async function proxy(request, context) {
     const base = process.env.BATTERYCHECK_BACKEND_URL || 'http://127.0.0.1:8814';
     const response = await fetch(`${base}/${endpoint}`, {
       method: request.method, headers, body: body || undefined, cache: 'no-store',
-      signal: AbortSignal.timeout(['identify', 'assistant'].includes(endpoint) ? 120000 : endpoint === 'sources/sync' ? 60000 : 10000),
+      signal: AbortSignal.timeout(['identify', 'assistant'].includes(endpoint) ? 120000 : endpoint === 'sources/sync' ? 60000 : endpoint === 'checks' || endpoint.startsWith('products') ? 45000 : 10000),
     });
     const text = await response.text();
     const responseHeaders = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };

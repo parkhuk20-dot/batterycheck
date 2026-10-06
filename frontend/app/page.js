@@ -19,13 +19,13 @@ async function prepareImage(file) {
   if (!['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'].includes(file.type)) throw new Error(unsupportedPhoto);
   let bitmap;
   try { bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch { throw new Error(unsupportedPhoto); }
-  const scale = Math.min(1, 1800 / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));  // keep small label lettering legible
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(bitmap.width * scale); canvas.height = Math.round(bitmap.height * scale);
   const context = canvas.getContext('2d');
   context.fillStyle = '#fff'; context.fillRect(0, 0, canvas.width, canvas.height);
   context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL('image/jpeg', 0.88).split(',')[1];
+  return canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
 }
 const safeLink = value => { try { const u = new URL(value); return u.protocol === 'https:' ? u.href : undefined; } catch { return undefined; } };
 
@@ -217,7 +217,7 @@ export default function Home() {
   function sample() { resetForm({ ...empty, brand: 'DEMO LAB', model: 'DEMO PB-100', model_confirmed: true, demo: true, manufactured_on: '2026-02-15', sale_region: 'DEMO-KR', lot: '001A' }); setSelectedId(null); setOcr(null); setMoreOpen(true); setMessage('연습용 가상 예시입니다. 실제 리콜 공지가 아닙니다.'); }
   async function identify(file) { if (!file) return; const generation = accountGeneration.current; await run(async () => { if (!user) throw new Error('사진으로 확인하려면 로그인이 필요합니다.'); setOcr(null); setMessage('사진에서 제품 정보를 확인하고 있어요.'); const data = await prepareImage(file); if (generation !== accountGeneration.current) return; setOcr(await guardedApi('identify', 'POST', { image_base64: data })); setMessage(''); }); }
   // Photo readings reach the form only through these two buttons, after the user has seen them.
-  function applyPhoto(search, brand = ocr.brand || '') { const model = ocr.model || ''; const next = { ...empty, brand, model, model_confirmed: Boolean(model) }; resetForm(next); setSelectedId(null); setMoreOpen(false); setOcr(null); if (search) return runCheck(next); setMessage('브랜드와 모델명을 라벨과 비교해 고친 뒤 리콜 정보를 확인해주세요.'); document.querySelector(model ? 'input[name=brand]' : 'input[name=model]')?.focus(); }
+  function applyPhoto(search, brand = ocr.brand || '', model = ocr.model || '') { const next = { ...empty, brand, model, model_confirmed: Boolean(model) }; resetForm(next); setSelectedId(null); setMoreOpen(false); setOcr(null); if (search) return runCheck(next); setMessage('브랜드와 모델명을 라벨과 비교해 고친 뒤 리콜 정보를 확인해주세요.'); document.querySelector(model ? 'input[name=brand]' : 'input[name=model]')?.focus(); }
   function retake() { (window.matchMedia('(pointer: coarse)').matches ? cameraInput : photoInput).current?.click(); }
   async function sync() { await run(async () => { const data = await guardedApi('sources/sync', 'POST', {}); setSourceStatus(data.source_status); await loadPrivate(); setMessage(`최신 정보를 다시 확인했습니다. 내 제품 ${data.rechecked ?? 0}개를 다시 확인했고 새 알림은 ${data.notifications_created ?? 0}건입니다.`); }); }
   function explain() { setAskSeed({ text: `${form.brand} ${form.model} 확인 결과가 "${result.label}"인데, 무슨 뜻이고 지금 무엇을 해야 하는지 쉽게 설명해 주세요.` }); document.getElementById('assistant')?.scrollIntoView({ behavior: 'smooth' }); }
@@ -235,11 +235,12 @@ export default function Home() {
         <div className="photo-input"><div className="photo-buttons"><label className="camera">카메라로 촬영<input ref={cameraInput} type="file" accept="image/*" capture="environment" disabled={busy || !user} onChange={e => { identify(e.target.files?.[0]); e.target.value = ''; }} /></label><label>사진으로 확인<input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" disabled={busy || !user} onChange={e => { identify(e.target.files?.[0]); e.target.value = ''; }} /></label></div><small>{!user ? '사진으로 확인하려면 로그인이 필요합니다. 직접 입력은 바로 할 수 있습니다.' : user.ai_consent && meta?.assistant?.vision ? '제품 뒷면이나 바닥의 라벨을 가까이 찍어주세요. AI가 브랜드와 모델명을 찾아드립니다. 사진 원본은 확인 후 저장하지 않습니다.' : '제품 뒷면이나 바닥의 라벨을 가까이 찍어주세요. 브랜드와 모델명을 찾아드립니다. 사진 원본은 확인 후 저장하지 않습니다.'}</small>
           {ocr && <div className="ocr-result" role="status"><strong>{ocr.message}</strong>
             {(ocr.brand || ocr.model || ocr.status === 'unsure') && <dl className="found"><div><dt>브랜드</dt><dd>{ocr.brand || '찾지 못함'}{ocr.brand_source === 'db_enrichment' && <small>공식 리콜 정보에서 확인한 브랜드입니다. 모델명은 사진에서 확인했어요.</small>}{ocr.brand_source === 'website_domain' && <small>사진 속 웹사이트 주소에서 추정했어요. 맞는지 확인해주세요.</small>}</dd></div>{ocr.product_name && <div><dt>제품명</dt><dd>{ocr.product_name}</dd></div>}<div><dt>모델명</dt><dd>{ocr.model || (ocr.status === 'unsure' && ocr.model_candidates.length ? ocr.model_candidates.join(' 또는 ') + ' (확실하지 않음)' : '찾지 못함')}</dd></div></dl>}
+            {ocr.model_options?.length > 0 && <p className="small">공식 리콜 공지에 있는 {ocr.brand} 모델입니다. 라벨의 모델명과 같을 때만 선택해주세요: {ocr.model_options.map(option => option.model).join(', ')}</p>}
             <div className="form-actions">{ocr.status === 'found' ? <><button type="button" disabled={busy} onClick={() => applyPhoto(true)}>맞아요, 리콜 확인</button><button type="button" className="secondary" disabled={busy} onClick={() => applyPhoto(false)}>직접 수정</button></>
               : ocr.status === 'found_db' ? <><button type="button" disabled={busy} onClick={() => applyPhoto(true)}>맞아요</button><button type="button" className="secondary" disabled={busy} onClick={() => applyPhoto(false, '')}>아니에요</button></>
               : ocr.status === 'choose' ? <>{ocr.brand_options.map(brand => <button type="button" className="secondary" key={brand} disabled={busy} onClick={() => applyPhoto(true, brand)}>{brand} {ocr.model}</button>)}<button type="button" className="secondary" disabled={busy} onClick={() => applyPhoto(false, '')}>직접 입력</button></>
               : ocr.status === 'model_only' ? <><button type="button" disabled={busy} onClick={() => applyPhoto(true)}>모델명으로 리콜 확인</button><button type="button" className="secondary" disabled={busy} onClick={() => applyPhoto(false)}>직접 수정</button></>
-              : <><button type="button" className="secondary" disabled={busy} onClick={retake}>다시 촬영</button><button type="button" className="secondary" disabled={busy} onClick={() => applyPhoto(false)}>직접 입력</button></>}</div>
+              : <>{(ocr.model_options || []).map(option => <button type="button" className="secondary" key={option.model} disabled={busy} onClick={() => applyPhoto(true, option.brand, option.model)}>내 제품은 {option.model}</button>)}<button type="button" className="secondary" disabled={busy} onClick={retake}>다시 촬영</button><button type="button" className="secondary" disabled={busy} onClick={() => applyPhoto(false)}>직접 입력</button></>}</div>
             {ocr.ai_hint && <small>AI 도우미 이용에 동의하면 사진을 더 정확하게 읽을 수 있어요. 동의하면 올린 사진이 AI로 전송됩니다.</small>}
             {ocr.text && <details><summary>개발용: 읽은 글자 전체</summary><pre>{ocr.text}</pre></details>}</div>}
         </div>

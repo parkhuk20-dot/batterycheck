@@ -89,10 +89,10 @@ class OfficialTests(unittest.TestCase):
         result = service.sync()
         self.assertTrue(result['ok'])
         self.assertEqual(result['state'], 'available')
-        self.assertEqual(len(self.requests), 1)
+        self.assertEqual(len(self.requests), 2)
         request = self.requests[0]
         self.assertEqual(str(request.url).split('?')[0], API_URL)
-        self.assertEqual(dict(request.url.params), {'format': 'json', 'ProductName': 'power bank'})
+        self.assertEqual([dict(r.url.params) for r in self.requests], [{'format': 'json', 'ProductName': 'power bank'}, {'format': 'json', 'ProductName': 'portable charger'}])
         self.assertNotIn('Authorization', request.headers)
         self.assertEqual(request.content, b'')
         cache = json.loads((self.directory / 'cpsc-cache.json').read_text())
@@ -140,7 +140,7 @@ class OfficialTests(unittest.TestCase):
         self.assertEqual(status['catalog_hash'], old['catalog_hash'])
         self.assertEqual(status['last_success_at'], NOW.isoformat())
         self.assertIn('503', status['error'])
-        self.assertEqual(len(self.requests), 3)  # initial request + bounded two failure attempts
+        self.assertEqual(len(self.requests), 4)  # two fixed queries, then two bounded failure attempts
         result = service.evaluate(product(brand='Fixture Brand', model='FX-001'))
         self.assertEqual(len(result['notices']), 1)
         self.assertIn('실패', result['next_action'])

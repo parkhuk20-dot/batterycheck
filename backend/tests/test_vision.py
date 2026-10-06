@@ -85,6 +85,18 @@ class ReadingTests(unittest.TestCase):
         found = vision.combine(casely, None)
         self.assertEqual((found['status'], found['brand'], found['brand_raw'], found['model']), ('found', 'Casely', 'CASELY', 'E33A'))
 
+    def test_table_labels_lookalike_letters_and_product_line(self):
+        from batterycheck.ocr import candidates_from_text
+        table = candidates_from_text(['Model', 'Battery Energy', 'Battery Capacity', 'Type-C In/Output', 'GETCASELY.COM',
+                                      'Executive Standard:GB T35590-2017', 'ЕЗЗА', '19Wh3.85V', '5000mAh', 'PD 20W(Max) 9V 2.25A'])
+        self.assertEqual((table['model_candidates'], table['brand_candidates']), (['E33A'], ['CASELY']))
+        anker = candidates_from_text(['PowerCore 10000', 'Model A1263', 'Cell Capacity 10000mAh/36Wh', 'Anker Innovations Limited'])
+        self.assertEqual((anker['brand_candidates'], anker['product_name'], anker['model_candidates']), (['ANKER'], 'PowerCore 10000', ['A1263']))
+        split = candidates_from_text(['ANKER', 'PowerCore 10000', 'Model A1263'])
+        self.assertEqual((split['brand_candidates'], split['model_candidates']), (['ANKER'], ['A1263']))
+        units = candidates_from_text(['Model', '5000mAh', '36Wh', '5V', 'Input 9V 2A'])
+        self.assertEqual(units['model_candidates'], [], 'capacity and voltage figures are not model names')
+
     def test_model_without_brand_is_completed_from_official_notices(self):
         only = vision.combine(ocr(models=['BS-30KP365']), None)
         self.assertEqual((only['status'], only['brand'], only['model']), ('model_only', None, 'BS-30KP365'))

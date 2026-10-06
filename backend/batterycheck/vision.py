@@ -99,10 +99,10 @@ def combine(ocr, seen):
     sources = ocr.get('brand_sources', {})
     raw = brands[0] if brands else None
     result = {'brand': display_brand(raw), 'brand_raw': raw, 'brand_source': sources.get(raw, 'label_text') if raw else 'unknown',
-              'model': models[0] if models else None, 'product_name': None, 'lot_or_batch': None, 'used_ai': seen is not None}
+              'model': models[0] if models else None, 'product_name': ocr.get('product_name'), 'lot_or_batch': None, 'used_ai': seen is not None}
     status = None
     if seen:
-        result.update(product_name=seen['product_name'], lot_or_batch=seen['lot_or_batch'])
+        result.update(product_name=seen['product_name'] or result['product_name'], lot_or_batch=seen['lot_or_batch'])
         if seen['brand']:
             result.update(brand=display_brand(seen['brand']), brand_raw=seen['brand'], brand_source=seen['brand_source'])
             if not any(_same(seen['brand'], b) for b in brands):
