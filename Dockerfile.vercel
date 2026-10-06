@@ -1,4 +1,4 @@
-# Single container for hosts that expose one port (Render): Next.js on $PORT, FastAPI on loopback.
+# Vercel container-image Function: one container, Next.js on $PORT, FastAPI on loopback.
 FROM node:22-bookworm-slim AS web
 ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app/frontend
@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
 COPY backend/batterycheck /app/batterycheck
 COPY shared /shared
 COPY --from=web --chown=batterycheck:batterycheck /app/frontend /app/frontend
-COPY deploy/render-start.sh /app/start.sh
+COPY deploy/start.sh /app/start.sh
 USER batterycheck
-ENV BATTERYCHECK_DB=/data/batterycheck.sqlite3
+ENV BATTERYCHECK_DB=/data/batterycheck.sqlite3 OPENAI_BASE_URL=https://copa.codyssey.kr/v1 BATTERYCHECK_AI_MODEL=gpt-5.4
 CMD ["sh", "/app/start.sh"]

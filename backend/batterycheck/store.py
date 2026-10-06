@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -20,8 +21,11 @@ def evidence_fingerprint(result):
 
 
 class Store:
-    def __init__(self, path):
+    def __init__(self, path, remote=None):
         self.path = Path(path)
+        # (url, token[, transport]) of a Turso database; without it the local SQLite file is used.
+        url = os.environ.get('TURSO_DATABASE_URL')
+        self.remote = remote or ((url, os.environ.get('TURSO_AUTH_TOKEN', '')) if url else None)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connection() as db:
             db.executescript('''
@@ -77,6 +81,19 @@ class Store:
 
     @contextmanager
     def connection(self):
+        if self.remote:
+            from .hrana import Connection
+            db = Connection(*self.remote)
+            try:
+                db.execute('PRAGMA foreign_keys=ON')
+                yield db
+                db.commit()
+            except BaseException:
+                db.rollback()
+                raise
+            finally:
+                db.close()
+            return
         db = sqlite3.connect(self.path, timeout=10)
         try:
             with db:

@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.venv
+.git
+**/node_modules
+**/.next
+**/__pycache__
+**/.data
+*.sqlite3*
+verification
+dist

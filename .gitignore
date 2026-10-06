@@ -12,3 +12,9 @@ verification/*.log
 .env.*
 !.env.example
 dist/
+.vercel
+.env*
+# Agent tooling installed by CLIs
+.agents/
+.claude/
+skills-lock.json

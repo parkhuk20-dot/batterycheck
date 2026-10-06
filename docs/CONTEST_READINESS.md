@@ -73,8 +73,8 @@
 | AI 생성 콘텐츠 명시 | 구현 | 답변마다 "AI 생성 답변 · 공식 판정 아님" 표시 |
 | 개인정보 동의·안전 관리 | 구현 | 가입 동의, AI 전송 별도 동의, 내보내기·삭제 |
 | 팀 3~6인, 역할 분담 | 미확정 | 실제 팀원과 담당을 README에 기입 |
-| GitHub 버전 관리 기록 | 미실시 | 현재 Git 저장소가 아님. 저장소 생성·커밋·푸시 필요 |
-| 외부 접근 가능한 배포 | 미실시 | [배포 절차](DEPLOYMENT.md)만 준비됨. 공개 URL 없음 |
+| GitHub 버전 관리 기록 | 진행 중 | github.com/parkhuk20-dot/batterycheck (비공개). 팀원별 기여 기록은 없음 |
+| 외부 접근 가능한 배포 | 완료 | https://batterycheck-beryl.vercel.app · [배포 절차](DEPLOYMENT.md) |
 | 실사용자 5명 이상 피드백 | 미실시 | [검증 절차](USER_VALIDATION.md)와 앱내 의견 양식만 준비됨 |
 | 피드백 반영 | 미실시 | 실제 피드백 이후 가능 |
 | 발표 자료 | 개요만 | [발표 개요](PRESENTATION.md). 슬라이드 미작성 |

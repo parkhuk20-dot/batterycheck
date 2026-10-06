@@ -19,7 +19,7 @@
 - **AI**: OpenAI 호환 Chat Completions API(코디세이 게이트웨이, 도구 사용 에이전트), 자체 문서 검색, 로컬 OCR(Apple Vision / Tesseract)
 - **Backend**: Python, FastAPI, SQLite
 - **Frontend**: Next.js, React (PWA)
-- **Infra**: Docker Compose, Caddy(HTTPS) — 설정 파일만 준비, 공개 배포 전
+- **Infra**: Vercel 컨테이너 함수(`Dockerfile.vercel`), Turso(libSQL) DB. 자체 서버용 Docker Compose·Caddy 설정도 포함
 
 선정 이유는 [구현 구조](docs/ARCHITECTURE.md#기술-선정-이유)에 있습니다.
 
@@ -128,13 +128,13 @@ node frontend/tests/ocr-eval.mjs
 
 ## 링크와 문서
 
-- 배포 URL: 미배포
+- 배포 URL: https://batterycheck-beryl.vercel.app (Vercel 컨테이너 함수 + Turso DB)
 - 발표 자료: [발표 개요](docs/PRESENTATION.md) (슬라이드 작성 전), [시연 흐름](docs/DEMO_SCRIPT.md)
 - [기획서](docs/PROJECT_PLAN.md) · [요구사항 정의서](docs/REQUIREMENTS.md) · [구현 구조와 AI 설계](docs/ARCHITECTURE.md)
 - [과제 요건과 준비 상태](docs/CONTEST_READINESS.md) · [사용자 검증 절차](docs/USER_VALIDATION.md)
 - [공식 출처와 API 실행 증거](docs/SOURCES.md) · [배포 절차](docs/DEPLOYMENT.md) · [최종 검증 기록](verification/final_report.md)
 
-공개 배포, Git 저장소 생성·푸시, Safety Korea 승인, 실제 사용자 참여, 안전 전문가 검토는 아직 하지 않았으며 코드 구현으로 대신하지 않습니다.
+Safety Korea 승인, 실제 사용자 참여, 안전 전문가 검토는 아직 하지 않았으며 코드 구현으로 대신하지 않습니다. 배포 환경에서는 계정·보관함·AI 대화·사용 의견이 Turso(미국 리전)에 저장됩니다.
 
 ## 라이선스
 
