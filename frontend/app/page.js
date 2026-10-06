@@ -83,9 +83,9 @@ function Assistant({ user, status, onConsent }) {
   }
   async function clear() { setError(''); try { await api('assistant/history', 'DELETE'); setItems([]); } catch (e) { setError(e.message); } }
   return <section className="panel assistant" aria-label="AI 안내 도우미"><p className="eyebrow">03 AI 안내 도우미</p><h2>공지와 내 기록을 쉬운 말로</h2>
-    <p className="small">Claude(Anthropic)가 저장된 공식 공지와 내 보관함 기록을 찾아 설명하고, 이전 대화를 기억합니다. <strong>AI가 생성한 답변이며 리콜 대상 여부나 제품 안전을 확정하지 않습니다.</strong> 연기·불꽃이 있다면 질문보다 119가 먼저입니다.</p>
+    <p className="small">생성형 AI가 저장된 공식 공지와 내 보관함 기록을 찾아 설명하고, 이전 대화를 기억합니다. <strong>AI가 생성한 답변이며 리콜 대상 여부나 제품 안전을 확정하지 않습니다.</strong> 연기·불꽃이 있다면 질문보다 119가 먼저입니다.</p>
     {!user ? <p className="small">로그인하면 이용할 수 있습니다.</p> : !status?.available ? <p className="warning">운영자가 AI 연결을 설정하지 않아 지금은 이용할 수 없습니다. 조건 대조와 보관함은 그대로 쓸 수 있습니다.</p> : <>
-      <label className="checkbox"><input type="checkbox" checked={Boolean(user.ai_consent)} disabled={waiting} onChange={e => onConsent(e.target.checked)} />질문 내용과 내 보관함의 제품 정보(브랜드·모델·판매지역·제조일·로트·조치 상태·확인 결과)를 답변 생성을 위해 Anthropic Claude API로 보내고, 대화를 내 계정에 저장하는 데 동의합니다. 사진은 보내지 않습니다. 동의는 언제든 해제할 수 있습니다.</label>
+      <label className="checkbox"><input type="checkbox" checked={Boolean(user.ai_consent)} disabled={waiting} onChange={e => onConsent(e.target.checked)} />질문 내용과 내 보관함의 제품 정보(브랜드·모델·판매지역·제조일·로트·조치 상태·확인 결과)를 답변 생성을 위해 {status.provider}로 보내고, 대화를 내 계정에 저장하는 데 동의합니다. 사진은 보내지 않습니다. 동의는 언제든 해제할 수 있습니다.</label>
       {user.ai_consent && <>
         <div className="chat" aria-live="polite">{items.length === 0 && <p className="small">예: “내 보관함 제품에 지금 확인할 게 있나요?”, “Anker A1263 공지는 어떤 조건인가요?”</p>}
           {items.map((item, i) => <article key={i} className={`chat-item ${item.role}`}><span className="tag">{item.role === 'user' ? '내 질문' : 'AI 생성 답변 · 공식 판정 아님'}</span><p>{item.content}</p>
@@ -212,6 +212,6 @@ export default function Home() {
       <Assistant key={`assistant-${user?.id || 'anonymous'}`} user={user} status={meta?.assistant} onConsent={consent => run(async () => { setUser(await guardedApi('auth/preferences', 'PATCH', { ai_consent: consent })); setMessage(consent ? 'AI 도우미 이용에 동의했습니다.' : 'AI 도우미 동의를 해제했습니다. 이후 질문은 전송되지 않습니다.'); })} />
       {history && <section className="panel history"><div className="section-heading"><h2>확인 이력 · 과거 입력과 공지 버전</h2><button className="text-button" onClick={() => setHistory(null)}>이력 닫기</button></div>{history.checks.map(check => <div key={check.id}><p>{check.input.brand} / {check.input.model} · 제조일 {check.input.manufactured_on || '미확인'} · 로트 {check.input.lot || '미확인'}</p><Result result={check.result} historical /></div>)}<h3>사용자 조치 기록</h3><ul>{history.actions.map((a, i) => <li key={i}>{actionLabels[a.state]} · {instant(a.recorded_at)}</li>)}</ul></section>}
       <Feedback />
-      <footer><p>AI 도우미의 답변은 Claude가 생성하며 사실 확인은 표시된 공식 자료에서 하세요.</p><p>사진 인식은 후보 추출을 돕습니다. 배터리 수명·내부 상태·화재확률을 계산하지 않습니다.</p><p>공지 적용 대상과 실제 회수 자격은 공식 원문·제조사에서 확인하세요. 안전 안내는 전문가 검토 전입니다.</p><p>개인정보: 계정·제품·이력·AI 대화는 계정 삭제 때까지 보관하며, AI 도우미에 동의한 경우에만 질문과 제품 정보를 Anthropic에 전송합니다. 내 기록 내려받기와 영구 삭제를 제공합니다. 사진 원본은 인식 후 보관하지 않습니다.</p></footer>
+      <footer><p>AI 도우미의 답변은 모델이 생성하며 사실 확인은 표시된 공식 자료에서 하세요.</p><p>사진 인식은 후보 추출을 돕습니다. 배터리 수명·내부 상태·화재확률을 계산하지 않습니다.</p><p>공지 적용 대상과 실제 회수 자격은 공식 원문·제조사에서 확인하세요. 안전 안내는 전문가 검토 전입니다.</p><p>개인정보: 계정·제품·이력·AI 대화는 계정 삭제 때까지 보관하며, AI 도우미에 동의한 경우에만 질문과 제품 정보를 외부 AI API에 전송합니다. 내 기록 내려받기와 영구 삭제를 제공합니다. 사진 원본은 인식 후 보관하지 않습니다.</p></footer>
     </main></>;
 }

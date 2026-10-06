@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 EXISTING_PYTHON = Path('/Users/sejin/Desktop/codyssey/M1-2/backend/venv/bin/python')
-PROJECT_PYTHON = ROOT / '.venv/bin/python'  # Has the Anthropic SDK for the AI assistant.
+PROJECT_PYTHON = ROOT / '.venv/bin/python'  # Has the OpenAI SDK for the AI assistant.
 python = os.environ.get('BATTERYCHECK_PYTHON', str(next((p for p in (PROJECT_PYTHON, EXISTING_PYTHON) if p.exists()), Path(sys.executable))))
 frontend = ROOT / 'frontend'
 next_bin = frontend / 'node_modules/.bin/next'
@@ -23,6 +23,12 @@ for port in (3114, 8814):
 logs = ROOT / 'verification'
 logs.mkdir(exist_ok=True)
 env = os.environ.copy()
+# Local secrets (e.g. OPENAI_API_KEY) live in the git-ignored .env; the shell environment wins.
+if (ROOT / '.env').exists():
+    for line in (ROOT / '.env').read_text().splitlines():
+        key, separator, value = line.partition('=')
+        if separator and not key.lstrip().startswith('#') and value.strip():
+            env.setdefault(key.strip(), value.strip())
 env['NEXT_TELEMETRY_DISABLED'] = '1'
 processes = []
 handles = []

@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,21 +15,25 @@ PRODUCT = {'brand': 'Anker', 'model': 'A1263', 'demo': False, 'model_confirmed':
            'product_kind': 'power_bank', 'signs_answered': True}
 
 
+def reply(content=None, calls=None):
+    return SimpleNamespace(model='fake-model', choices=[SimpleNamespace(
+        message=SimpleNamespace(content=content, tool_calls=calls, refusal=None))])
+
+
 def text(value):
-    return SimpleNamespace(stop_reason='end_turn', model='fake-model', content=[SimpleNamespace(type='text', text=value)])
+    return reply(content=value)
 
 
 def tools(*calls):
-    return SimpleNamespace(stop_reason='tool_use', model='fake-model', content=[
-        SimpleNamespace(type='tool_use', id=f'call-{index}', name=name, input=arguments)
-        for index, (name, arguments) in enumerate(calls)])
+    return reply(calls=[SimpleNamespace(id=f'call-{index}', function=SimpleNamespace(name=name, arguments=json.dumps(arguments)))
+                        for index, (name, arguments) in enumerate(calls)])
 
 
-class FakeClaude:
-    """Scripted stand-in for the Messages API; records every request."""
+class FakeModel:
+    """Scripted stand-in for the Chat Completions API; records every request."""
     def __init__(self, script):
         self.script, self.requests = list(script), []
-        self.beta = SimpleNamespace(messages=SimpleNamespace(create=self.create))
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self.create))
 
     def create(self, **request):
         self.requests.append(request | {'messages': list(request['messages'])})
@@ -40,8 +45,8 @@ class AssistantTest(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         root = Path(self.directory.name)
-        self.claude = FakeClaude([])
-        self.app = create_app(root / 'test.sqlite3', official_service=OfficialService(root / 'official'), ai_client=self.claude)
+        self.model = FakeModel([])
+        self.app = create_app(root / 'test.sqlite3', official_service=OfficialService(root / 'official'), ai_client=self.model)
 
     def account(self, username, consent=True):
         client = TestClient(self.app)
@@ -61,12 +66,12 @@ class AssistantTest(unittest.TestCase):
         client = self.account('noconsent', consent=False)
         self.assertEqual(client.post('/assistant', json={'question': '내 배터리 괜찮나요?'}).status_code, 403)
         self.assertEqual(TestClient(self.app).post('/assistant', json={'question': '질문'}).status_code, 401)
-        self.assertEqual(self.claude.requests, [])
+        self.assertEqual(self.model.requests, [])
 
     def test_agent_uses_tools_cites_sources_and_remembers(self):
         client = self.account('owner')
         self.assertEqual(client.post('/products', json=PRODUCT).status_code, 201)
-        self.claude.script += [tools(('get_my_products', {}), ('search_official_documents', {'query': 'Anker A1263'}),
+        self.model.script += [tools(('get_my_products', {}), ('search_official_documents', {'query': 'Anker A1263'}),
                                      ('check_product', {'brand': 'Anker', 'model': 'A1263', 'sale_region': 'KR'})),
                                text('A1263은 미국 공지 후보(cpsc-25-338)가 있습니다. 일련번호를 확인하세요.')]
         reply = client.post('/assistant', json={'question': '내 보조배터리 리콜인가요?'})
@@ -76,33 +81,33 @@ class AssistantTest(unittest.TestCase):
         self.assertIn('cpsc-25-338', body['answer'])
         self.assertEqual([s['id'] for s in body['sources']], ['cpsc-25-338'])
         self.assertTrue(body['sources'][0]['url'].startswith('https://www.cpsc.gov/Recalls/'))
-        mine, found, checked = [r['content'] for r in self.claude.requests[1]['messages'][-1]['content']]
+        mine, found, checked = [m['content'] for m in self.model.requests[1]['messages'][-3:]]
         self.assertIn('A1263', mine)
         self.assertIn('qualifying serial numbers', found)
         self.assertIn('needs_information', checked)
 
-        self.claude.script.append(text('지난번에 물어보신 A1263 이야기입니다.'))
+        self.model.script.append(text('지난번에 물어보신 A1263 이야기입니다.'))
         client.post('/assistant', json={'question': '아까 그 제품 다시 알려줘'})
-        replayed = self.claude.requests[2]['messages']
-        self.assertEqual([m['role'] for m in replayed], ['user', 'assistant', 'user'])
-        self.assertEqual(replayed[0]['content'], '내 보조배터리 리콜인가요?')
+        replayed = self.model.requests[2]['messages']
+        self.assertEqual([m['role'] for m in replayed], ['system', 'user', 'assistant', 'user'])
+        self.assertEqual(replayed[1]['content'], '내 보조배터리 리콜인가요?')
         self.assertEqual(len(client.get('/assistant/history').json()), 4)
         self.assertEqual(len(client.get('/auth/export').json()['assistant_messages']), 4)
 
         other = self.account('stranger')
         self.assertEqual(other.get('/assistant/history').json(), [])
-        self.claude.script += [tools(('get_my_products', {})), text('저장된 제품이 없습니다.')]
+        self.model.script += [tools(('get_my_products', {})), text('저장된 제품이 없습니다.')]
         other.post('/assistant', json={'question': '내 제품 보여줘'})
-        self.assertNotIn('A1263', str(self.claude.requests[-1]['messages']))
+        self.assertNotIn('A1263', str(self.model.requests[-1]['messages'][1:]))
 
         self.assertEqual(client.delete('/assistant/history').status_code, 204)
         self.assertEqual(client.get('/assistant/history').json(), [])
 
     def test_bad_tool_input_is_reported_to_the_model_not_the_user(self):
         client = self.account('badtool')
-        self.claude.script += [tools(('check_product', {'brand': 'x' * 200, 'model': 'm', 'sale_region': 'KR'})), text('확인하지 못했습니다.')]
+        self.model.script += [tools(('check_product', {'brand': 'x' * 200, 'model': 'm', 'sale_region': 'KR'})), text('확인하지 못했습니다.')]
         self.assertEqual(client.post('/assistant', json={'question': '확인'}).status_code, 200)
-        self.assertTrue(self.claude.requests[1]['messages'][-1]['content'][0]['is_error'])
+        self.assertIn('처리하지 못했습니다', self.model.requests[1]['messages'][-1]['content'])
 
     def test_feedback_is_stored_and_removed_with_the_account(self):
         client = self.account('reviewer', consent=False)

@@ -16,7 +16,7 @@
 
 ## 기술 스택
 
-- **AI**: Anthropic Claude API(도구 사용 에이전트), 자체 문서 검색, 로컬 OCR(Apple Vision / Tesseract)
+- **AI**: OpenAI 호환 Chat Completions API(코디세이 게이트웨이, 도구 사용 에이전트), 자체 문서 검색, 로컬 OCR(Apple Vision / Tesseract)
 - **Backend**: Python, FastAPI, SQLite
 - **Frontend**: Next.js, React (PWA)
 - **Infra**: Docker Compose, Caddy(HTTPS) — 설정 파일만 준비, 공개 배포 전
@@ -30,7 +30,7 @@ flowchart LR
     U[사용자] --> W[Next.js 웹] --> P[API 프록시] --> A[FastAPI]
     A --> E[조건 대조 규칙 엔진]
     A --> H[AI 안내 도우미]
-    H -->|AI 이용 동의 시| L[Claude API]
+    H -->|AI 이용 동의 시| L[AI API]
     H --> R[공식 공지·안전 안내 검색]
     H --> M[계정별 대화 기억·보관함]
     J[정기 갱신 worker] --> R
@@ -41,14 +41,14 @@ flowchart LR
 
 ## 핵심 AI 활용
 
-1. **AI Agent** — 질문을 받으면 Claude가 `search_official_documents`, `get_my_products`, `check_product` 중 필요한 도구를 골라 호출하고 결과를 종합합니다.
+1. **AI Agent** — 질문을 받으면 모델이 `search_official_documents`, `get_my_products`, `check_product` 중 필요한 도구를 골라 호출하고 결과를 종합합니다.
 2. **RAG** — 저장된 CPSC 공지와 소방청·산업통상자원부 안전 안내를 검색해 그 내용만 근거로 답하고, 참고한 자료의 링크를 답변 아래에 표시합니다.
 3. **Long-term Memory** — 계정별 대화를 저장해 다음 질문에 이전 맥락을 이어 가고, 보관함의 제품·조치 이력을 조회합니다.
 4. **자동화 워크플로우** — worker가 공지 수집 → 저장 제품 재확인 → 변경 감지 → 앱내 알림을 주기적으로 실행합니다(LLM 미사용).
 
-AI 윤리: 모든 답변에 "AI 생성 답변 · 공식 판정 아님"을 표시합니다. AI 도우미는 가입 동의와 별개의 동의를 받은 계정에서만 작동하고, 그때만 질문과 보관함 요약(브랜드·모델·판매지역·제조일·로트·조치 상태·확인 결과)을 Anthropic에 보냅니다. 사진은 보내지 않습니다. 리콜 후보 판정과 위험징후 문구는 AI가 아니라 규칙과 검토된 문서가 정합니다.
+AI 윤리: 모든 답변에 "AI 생성 답변 · 공식 판정 아님"을 표시합니다. AI 도우미는 가입 동의와 별개의 동의를 받은 계정에서만 작동하고, 그때만 질문과 보관함 요약(브랜드·모델·판매지역·제조일·로트·조치 상태·확인 결과)을 외부 AI API에 보냅니다. 사진은 보내지 않습니다. 리콜 후보 판정과 위험징후 문구는 AI가 아니라 규칙과 검토된 문서가 정합니다.
 
-**검증 범위:** 에이전트는 가짜 클라이언트를 쓴 자동 테스트로 확인했습니다. 실제 Claude API 호출은 API 키 설정 후 확인해야 합니다.
+**검증 범위:** 에이전트는 가짜 클라이언트를 쓴 자동 테스트로 확인했습니다. 2026-10-06에 로컬에서 코디세이 게이트웨이의 `gpt-5.4`로 실제 질문 2건(보관함 조회·출처 표시, 이전 대화 기억)을 확인했습니다. 답변 품질을 체계적으로 평가한 것은 아닙니다.
 
 ## 현재 기능
 
@@ -75,11 +75,11 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r backend/requirements.txt
 npm ci --prefix frontend --ignore-scripts --no-audit --no-fund
 NEXT_TELEMETRY_DISABLED=1 npm run build --prefix frontend
-export ANTHROPIC_API_KEY=...   # AI 도우미용. 없으면 도우미만 꺼지고 나머지는 동작
+export OPENAI_API_KEY=...   # AI 도우미용. 없으면 도우미만 꺼지고 나머지는 동작
 python3 scripts/run_local.py
 ```
 
-웹: `http://127.0.0.1:3114` / API: `http://127.0.0.1:8814`. 두 포트가 비어 있어야 하며 종료는 Ctrl+C입니다. `run_local.py`는 프로젝트의 `.venv`를 먼저 쓰고, 다른 환경은 `BATTERYCHECK_PYTHON=/absolute/path/to/python`으로 지정합니다. `.env`를 자동으로 읽지 않으므로 환경변수는 셸에서 설정하세요. 모델은 `BATTERYCHECK_AI_MODEL`로 바꿀 수 있습니다(기본 `claude-opus-5-5`).
+웹: `http://127.0.0.1:3114` / API: `http://127.0.0.1:8814`. 두 포트가 비어 있어야 하며 종료는 Ctrl+C입니다. `run_local.py`는 프로젝트의 `.venv`를 먼저 쓰고, 다른 환경은 `BATTERYCHECK_PYTHON=/absolute/path/to/python`으로 지정합니다. 프로젝트 루트의 `.env`(Git 제외)가 있으면 읽으며, 셸에 설정한 값이 우선합니다. 코디세이 API 콘솔의 OpenAI 호환 키를 쓰려면 `.env.example`의 `OPENAI_BASE_URL` 예시를 따르세요. 모델은 `BATTERYCHECK_AI_MODEL`로 바꿀 수 있습니다(기본 `gpt-5.4`).
 
 Mac OCR은 Apple Vision과 Swift 컴파일러를 사용합니다. 첫 실행 시 프로젝트의 `.data/ocr`에 인식 실행 파일을 생성합니다. Linux에서는 Tesseract가 필요하며 배포용 Dockerfile에 설치 과정이 있습니다. 두 엔진은 별도이며 실제 검증한 엔진과 데이터 범위는 [최종 검증 기록](verification/final_report.md)에 기재합니다. 사진은 4MB·2천만 화소 이하 PNG/JPEG만 지원하고, 인식 후 임시 원본을 삭제합니다. 사진은 외부 AI에 전송하지 않습니다.
 

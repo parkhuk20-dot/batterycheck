@@ -63,7 +63,7 @@
 
 | 요건 | 현재 상태 | 근거 또는 남은 일 |
 |---|---|---|
-| 생성형 AI·AI Agent가 핵심 기능 | 구현 · 실제 호출 미검증 | `assistant.py`의 Claude 도구 사용 에이전트. API 키 설정 후 실제 응답 확인 필요 |
+| 생성형 AI·AI Agent가 핵심 기능 | 구현 · 로컬 실제 호출 2건 확인 | `assistant.py`의 LLM 도구 사용 에이전트. 답변 품질의 체계적 평가는 미실시 |
 | 필수 기술 요소 2개 이상 | 구현 | AI Agent, RAG, Long-term Memory, 자동화 워크플로우(worker). [요구사항 정의서](REQUIREMENTS.md) 4절 |
 | 기획서 | 초안 | [기획서](PROJECT_PLAN.md). 일정 날짜와 팀 역할 확정 필요 |
 | 기능 요구 명세서·아키텍처 | 작성 | [요구사항 정의서](REQUIREMENTS.md), [구현 구조](ARCHITECTURE.md) |

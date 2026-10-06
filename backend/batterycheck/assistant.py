@@ -1,15 +1,15 @@
-"""Grounded Q&A agent. Claude picks the tools; recall status stays with the rule engine."""
+"""Grounded Q&A agent. The model picks the tools; recall status stays with the rule engine."""
 import json
 import os
 import re
 import unicodedata
 
-from pydantic import ValidationError
-
 from .models import ProductInput
 from .safety import GUIDANCE
 
-MODEL = os.environ.get('BATTERYCHECK_AI_MODEL', 'claude-opus-5-5')
+# OpenAI Chat Completions protocol; OPENAI_BASE_URL may point at a compatible gateway (https://copa.codyssey.kr/v1).
+MODEL = os.environ.get('BATTERYCHECK_AI_MODEL', 'gpt-5.4')
+GATEWAY = os.environ.get('OPENAI_BASE_URL', '')
 MAX_TURNS = 6
 MEMORY_MESSAGES = 20  # Prior turns replayed per request; older turns stay stored but unsent.
 TOP_K = 4
@@ -35,27 +35,28 @@ SYSTEM = '''당신은 보조배터리 리콜 확인 서비스 "배터리체크"�
 한국어로, 서너 문단 이내의 평문으로 답하세요. 화면이 마크다운을 표시하지 않으므로 기호 서식 없이 문장으로 쓰세요. 보조배터리 안전·리콜과 무관한 요청에는 이 서비스가 도울 수 있는 범위를 짧게 알려주세요.'''
 
 _OBJECT = {'type': 'object', 'additionalProperties': False}
-TOOLS = [
+_FUNCTIONS = [
     {'name': 'search_official_documents', 'strict': True,
      'description': '저장된 공식 리콜 공지(미국 CPSC)와 소방청·산업통상자원부 안전 안내에서 관련 문서를 검색합니다. '
                     '리콜 여부, 대상 조건, 조치 방법, 위험징후 대처를 답하기 전에 호출하세요. '
                     '공지는 영문 브랜드·모델명으로 색인되어 있으므로 "Anker A1263"처럼 식별자를 넣으면 잘 찾습니다. '
                     '안전 안내는 "연기", "팽창", "발열" 같은 한국어 증상으로 찾습니다.',
-     'input_schema': _OBJECT | {'properties': {'query': {'type': 'string', 'description': '브랜드·모델명 또는 증상 키워드'}},
+     'parameters': _OBJECT | {'properties': {'query': {'type': 'string', 'description': '브랜드·모델명 또는 증상 키워드'}},
                                 'required': ['query']}},
     {'name': 'get_my_products', 'strict': True,
      'description': '현재 사용자가 보관함에 저장한 제품, 마지막 확인 결과, 조치 상태를 가져옵니다. '
                     '사용자가 자기 제품이나 과거 확인 기록을 물을 때 호출하세요.',
-     'input_schema': _OBJECT | {'properties': {}, 'required': []}},
+     'parameters': _OBJECT | {'properties': {}, 'required': []}},
     {'name': 'check_product', 'strict': True,
      'description': '사용자가 말한 브랜드와 모델명을 공식 공지 후보와 대조합니다. 결과는 후보 검색이며 리콜 대상 확정이 아닙니다. '
                     '사용자가 직접 말한 브랜드·모델명만 넣고, 추측한 값은 넣지 마세요.',
-     'input_schema': _OBJECT | {'properties': {
+     'parameters': _OBJECT | {'properties': {
          'brand': {'type': 'string'}, 'model': {'type': 'string'},
          'sale_region': {'type': 'string', 'enum': ['KR', 'US', 'OTHER', 'UNKNOWN'],
                          'description': '사용자가 말한 판매지역. 모르면 UNKNOWN'}},
          'required': ['brand', 'model', 'sale_region']}},
 ]
+TOOLS = [{'type': 'function', 'function': function} for function in _FUNCTIONS]
 
 
 class AssistantError(Exception):
@@ -91,13 +92,14 @@ class Assistant:
         if self._client is not None:
             return True
         try:
-            import anthropic  # noqa: F401
+            import openai  # noqa: F401
         except ImportError:
             return False
-        return bool(os.environ.get('ANTHROPIC_API_KEY') or os.environ.get('ANTHROPIC_AUTH_TOKEN'))
+        return bool(os.environ.get('OPENAI_API_KEY'))
 
     def status(self):
-        return {'available': self.available(), 'provider': 'Anthropic Claude API', 'model': MODEL,
+        provider = 'OpenAI 호환 API' + (f' ({GATEWAY.split("//")[-1].split("/")[0]} 게이트웨이 경유)' if GATEWAY else '')
+        return {'available': self.available(), 'provider': provider, 'model': MODEL,
                 'elements': ['ai_agent', 'rag', 'long_term_memory'], 'consent_required': True,
                 'sent_when_consented': '질문 내용, 이전 대화, 보관함의 브랜드·모델·판매지역·제조일·로트·조치 상태·확인 결과'}
 
@@ -137,46 +139,42 @@ class Assistant:
         raise KeyError(name)
 
     def answer(self, user_id, question):
-        import anthropic
-        client = self._client or anthropic.Anthropic()
+        import openai
+        client = self._client or openai.OpenAI()
         # Long-term memory: earlier turns of this account, stored as plain text.
-        messages = [{'role': m['role'], 'content': m['content']}
-                    for m in self.store.assistant_history(user_id, MEMORY_MESSAGES)]
-        while messages and messages[0]['role'] != 'user':
-            messages.pop(0)
-        messages.append({'role': 'user', 'content': question})
+        history = [{'role': m['role'], 'content': m['content']}
+                   for m in self.store.assistant_history(user_id, MEMORY_MESSAGES)]
+        while history and history[0]['role'] != 'user':
+            history.pop(0)
+        messages = [{'role': 'system', 'content': SYSTEM}, *history, {'role': 'user', 'content': question}]
         sources = []
         try:
             for _ in range(MAX_TURNS):
-                response = client.beta.messages.create(
-                    model=MODEL, max_tokens=16000, system=SYSTEM, tools=TOOLS, messages=messages,
-                    output_config={'effort': 'low'},
-                    betas=['server-side-fallback-2026-07-01'], fallbacks='default')
-                if response.stop_reason == 'refusal':
+                response = client.chat.completions.create(model=MODEL, messages=messages, tools=TOOLS)
+                message = response.choices[0].message
+                if getattr(message, 'refusal', None):
                     raise AssistantError(422, 'AI가 이 질문에는 답변을 만들지 않았습니다. 공식 출처를 직접 확인하세요.')
-                if response.stop_reason != 'tool_use':
+                if not message.tool_calls:
                     break
-                messages.append({'role': 'assistant', 'content': response.content})
-                results = []
-                for block in response.content:
-                    if block.type != 'tool_use':
-                        continue
+                messages.append({'role': 'assistant', 'content': message.content, 'tool_calls': [
+                    {'id': call.id, 'type': 'function',
+                     'function': {'name': call.function.name, 'arguments': call.function.arguments}}
+                    for call in message.tool_calls]})
+                for call in message.tool_calls:
                     try:
-                        results.append({'type': 'tool_result', 'tool_use_id': block.id,
-                                        'content': self._run_tool(block.name, block.input, user_id, sources)})
-                    except (KeyError, TypeError, ValidationError) as exc:
-                        results.append({'type': 'tool_result', 'tool_use_id': block.id, 'is_error': True,
-                                        'content': f'도구 입력을 처리하지 못했습니다: {type(exc).__name__}'})
-                messages.append({'role': 'user', 'content': results})
+                        content = self._run_tool(call.function.name, json.loads(call.function.arguments), user_id, sources)
+                    except (KeyError, TypeError, ValueError) as exc:  # ValueError covers bad JSON and pydantic validation
+                        content = f'도구 입력을 처리하지 못했습니다: {type(exc).__name__}'
+                    messages.append({'role': 'tool', 'tool_call_id': call.id, 'content': content})
             else:
                 raise AssistantError(502, 'AI가 정해진 단계 안에 답변을 마치지 못했습니다. 질문을 나눠 다시 시도하세요.')
-        except anthropic.RateLimitError:
-            raise AssistantError(429, 'AI 서비스 요청 한도에 도달했습니다. 잠시 후 다시 시도하세요.') from None
-        except anthropic.APIStatusError as exc:
+        except openai.RateLimitError:
+            raise AssistantError(429, 'AI 서비스 요청 한도 또는 토큰 잔여량에 도달했습니다. 잠시 후 다시 시도하세요.') from None
+        except openai.APIStatusError as exc:
             raise AssistantError(502, f'AI 서비스가 오류를 반환했습니다 (HTTP {exc.status_code}). 답변을 만들지 못했습니다.') from None
-        except anthropic.APIConnectionError:
+        except openai.APIConnectionError:
             raise AssistantError(503, 'AI 서비스에 연결하지 못했습니다. 답변을 만들지 못했습니다.') from None
-        text = '\n'.join(block.text for block in response.content if block.type == 'text').strip()
+        text = (message.content or '').strip()
         if not text:
             raise AssistantError(502, 'AI가 빈 답변을 반환했습니다. 다시 시도하세요.')
         unique = list({source['url']: source for source in sources}.values())

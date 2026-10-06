@@ -160,7 +160,7 @@ def create_app(db_path=None, catalog_path=CATALOG_PATH, clock=None, official_ser
                 'data': '공식 CPSC 공개 공지와 가상 시연을 구분합니다. 국내 출처 연결과 회수 자격의 최종 확인은 별도입니다.',
                 'privacy': {'version': '2026-10-02', 'retention': '계정 삭제 시 계정·제품·이력·알림 삭제',
                             'photos': 'OCR 처리 후 보관하지 않음', 'external_product_transmission': False,
-                            'ai_assistant': 'AI 도우미 사용에 별도 동의한 계정만 질문·보관함 요약을 Anthropic Claude API로 전송. 사진은 전송하지 않음'}}
+                            'ai_assistant': 'AI 도우미 사용에 별도 동의한 계정만 질문·보관함 요약을 OpenAI 호환 API(코디세이 게이트웨이)로 전송. 사진은 전송하지 않음'}}
 
     @app.get('/sources/status')
     def sources_status():
@@ -190,7 +190,7 @@ def create_app(db_path=None, catalog_path=CATALOG_PATH, clock=None, official_ser
         if not user['ai_consent']:
             raise HTTPException(403, 'AI 도우미 이용에 먼저 동의하세요. 동의 전에는 질문과 제품 정보를 외부 AI로 보내지 않습니다.')
         if not app.state.assistant.available():
-            raise HTTPException(503, 'AI 도우미가 설정되지 않았습니다. 운영자가 Claude API 키를 설정해야 합니다.')
+            raise HTTPException(503, 'AI 도우미가 설정되지 않았습니다. 운영자가 AI API 키를 설정해야 합니다.')
         limit(request, ('assistant', user['id']), 10, 300)
         try:
             reply = app.state.assistant.answer(user['id'], body.question)
@@ -204,7 +204,7 @@ def create_app(db_path=None, catalog_path=CATALOG_PATH, clock=None, official_ser
     @app.post('/feedback', status_code=201)
     def feedback(body: FeedbackInput, request: Request):
         client = request.client.host if request.client else 'unknown'
-        limit(request, ('feedback', client), 5, 300)
+        limit(request, ('feedback', client), 30, 300)  # Behind the proxy every visitor shares one client address.
         user = app.state.auth.current(request.cookies.get(SESSION_COOKIE))
         app.state.store.add_feedback(user['id'] if user else None, body.rating, body.comment, now_text())
         return {'saved': True}

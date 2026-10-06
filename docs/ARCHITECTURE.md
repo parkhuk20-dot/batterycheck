@@ -1,6 +1,6 @@
 # 구현 구조와 데이터 계약
 
-현재 실행 대상은 단일 서버입니다. 프런트엔드 Next.js, 백엔드 FastAPI, 계정·기록 저장 SQLite, 사진 문자 인식 Apple Vision 또는 Tesseract, AI 안내 도우미에 Anthropic Claude API를 사용합니다. PostgreSQL·벡터 검색은 쓰지 않습니다. AI 도우미는 가짜 클라이언트를 쓴 자동 테스트로 검증했으며, 실제 Claude API 호출 결과는 API 키를 설정한 뒤 [최종 검증 보고서](../verification/final_report.md)에 따로 기록합니다.
+현재 실행 대상은 단일 서버입니다. 프런트엔드 Next.js, 백엔드 FastAPI, 계정·기록 저장 SQLite, 사진 문자 인식 Apple Vision 또는 Tesseract, AI 안내 도우미에 OpenAI 호환 API(코디세이 게이트웨이)를 사용합니다. PostgreSQL·벡터 검색은 쓰지 않습니다. AI 도우미는 가짜 클라이언트를 쓴 자동 테스트와 로컬 실제 호출로 확인했으며 결과는 [최종 검증 보고서](../verification/final_report.md)에 있습니다../verification/final_report.md)에 따로 기록합니다.
 
 ```mermaid
 flowchart TD
@@ -17,7 +17,7 @@ flowchart TD
     C --> E[CPSC 공개 API / 공식 웹 확인 공지]
     A --> G[공통 위험징후 안내]
     A --> H[AI 안내 도우미 에이전트]
-    H -->|동의한 계정만| L[Anthropic Claude API]
+    H -->|동의한 계정만| L[OpenAI 호환 API(코디세이 게이트웨이)]
     H -->|search_official_documents| R
     H -->|get_my_products / 대화 기억| S
     H -->|check_product| D
@@ -111,12 +111,12 @@ flowchart TD
 | Next.js | 한 저장소에서 화면과 같은 출처 API 프록시를 함께 제공 |
 | FastAPI | 입력 검증(Pydantic)과 자동 API 문서, Python AI SDK와 같은 언어 |
 | SQLite | 단일 서버 규모, 계정 삭제 cascade로 개인정보 삭제가 단순 |
-| Claude API + 도구 사용 | 한국어 설명 품질, 도구 호출과 strict 스키마 지원. 프레임워크 없이 SDK만 사용해 의존성 최소화 |
+| OpenAI 호환 API + 도구 사용 | 코디세이가 제공하는 게이트웨이와 토큰을 그대로 사용, 도구 호출과 strict 스키마 지원. 프레임워크 없이 SDK만 사용해 의존성 최소화 |
 | 로컬 OCR | 사진을 외부로 보내지 않기 위해 |
 
 ## 운영 경계
 
-자료의 원문과 OCR 텍스트는 데이터로 취급하며 명령으로 실행하지 않습니다. CPSC 조회는 고정 공개 품목만 요청하고 사용자 브랜드·사진·시리얼을 전송하지 않습니다. 판정은 구조화된 식별자 대조이며 생성형 요약으로 판정 상태를 변경하지 않습니다. 외부로 나가는 사용자 데이터는 AI 도우미에 동의한 계정의 질문과 보관함 요약뿐이며 목적지는 Anthropic Claude API 한 곳입니다.
+자료의 원문과 OCR 텍스트는 데이터로 취급하며 명령으로 실행하지 않습니다. CPSC 조회는 고정 공개 품목만 요청하고 사용자 브랜드·사진·시리얼을 전송하지 않습니다. 판정은 구조화된 식별자 대조이며 생성형 요약으로 판정 상태를 변경하지 않습니다. 외부로 나가는 사용자 데이터는 AI 도우미에 동의한 계정의 질문과 보관함 요약뿐이며 목적지는 OpenAI 호환 API(코디세이 게이트웨이) 한 곳입니다.
 
 웹 1프로세스와 선택적 worker 1프로세스가 SQLite를 공유합니다. 공지 수집은 파일 잠금, 저장은 트랜잭션·동의 재확인·이전 입력 비교로 경합을 처리합니다. 요청 제한은 프로세스 메모리 기반이므로 다중 인스턴스 운영에는 별도 설계가 필요합니다.
 
