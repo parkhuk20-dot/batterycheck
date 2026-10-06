@@ -67,7 +67,7 @@ try {
   await finished;
   await second.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   // Wait for the response body and subsequent render opportunities, not only logout's reset.
-  await second.getByRole('button', { name: '조건 대조하기', exact: true }).waitFor({ state: 'visible' });
+  await second.getByRole('button', { name: '리콜 정보 확인', exact: true }).waitFor({ state: 'visible' });
   assert.equal(await second.locator('section[aria-label="로그인"]').count(), 1);
   assert.equal(await second.locator('.history').count(), 0, 'late authorized history must not repopulate an anonymous tab');
   assert.equal(await second.locator('.saved-product').count(), 0);
@@ -78,7 +78,7 @@ try {
   await first.getByRole('button', { name: '로그인', exact: true }).click();
   await second.locator('.saved-product').waitFor();
   const account = first.locator('section[aria-label="계정 관리"]');
-  await account.getByText('알림 · 개인정보 관리', { exact: true }).click();
+  await account.getByText('내 기록 · 계정 관리', { exact: true }).click();
   await account.getByText('계정과 모든 기록 삭제', { exact: true }).click();
   await account.getByLabel('삭제 확인 비밀번호', { exact: true }).fill(password);
   await account.getByRole('button', { name: '모든 내 기록 영구 삭제', exact: true }).click();

@@ -11,7 +11,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .auth import Auth, RateLimiter, SESSION_COOKIE, SESSION_SECONDS
 from .engine import CATALOG_PATH, evaluate, normalize
-from .assistant import Assistant, AssistantError
+from .assistant import MODEL, Assistant, AssistantError
 from .models import (ActionInput, AssistantInput, DeleteAccountInput, FeedbackInput, IdentifyInput, LoginInput,
                      PreferencesInput, ProductInput, RegisterInput, RiskInput)
 from .safety import EMERGENCY_TEXT, SOURCES, risk_guidance
@@ -160,7 +160,7 @@ def create_app(db_path=None, catalog_path=CATALOG_PATH, clock=None, official_ser
                 'data': '공식 CPSC 공개 공지와 가상 시연을 구분합니다. 국내 출처 연결과 회수 자격의 최종 확인은 별도입니다.',
                 'privacy': {'version': '2026-10-02', 'retention': '계정 삭제 시 계정·제품·이력·알림 삭제',
                             'photos': 'OCR 처리 후 보관하지 않음', 'external_product_transmission': False,
-                            'ai_assistant': 'AI 도우미 사용에 별도 동의한 계정만 질문·보관함 요약을 OpenAI 호환 API(코디세이 게이트웨이)로 전송. 사진은 전송하지 않음'}}
+                            'ai_assistant': 'AI 도우미 사용에 별도 동의한 계정만 질문·보관함 요약을 OpenAI 호환 API(코디세이 게이트웨이)로 전송. 사진은 AI 사진 판독을 켠 경우에만 전송하며 저장하지 않음'}}
 
     @app.get('/sources/status')
     def sources_status():
@@ -215,17 +215,47 @@ def create_app(db_path=None, catalog_path=CATALOG_PATH, clock=None, official_ser
 
     @app.post('/identify')
     def identify(body: IdentifyInput, request: Request, user=Depends(current_user)):
-        from .ocr import extract_label
+        from . import vision
+        from .ocr import decode_image, extract_label
         limit(request, ('identify', user['id']), 15, 300)
-        return extract_label(body.image_base64)
+        vision.log.info('[BatteryImage] file received')
+        vision.log.info('[BatteryImage] file size: about %d bytes', len(body.image_base64) * 3 // 4)
+        # Photos leave the server only for accounts that agreed to AI processing.
+        use_ai = app.state.assistant.vision and user['ai_consent'] and app.state.assistant.available()
+        vision.log.info('[BatteryImage] vision configured: %s', str(bool(use_ai)).lower())
+        if use_ai:
+            data = decode_image(body.image_base64)
+            vision.log.info('[BatteryImage] file type: %s', 'image/png' if data.startswith(b'\x89PNG') else 'image/jpeg')
+            try:
+                local = extract_label(body.image_base64)
+            except HTTPException:
+                local = None  # The on-device reader is optional once the vision reading is available.
+        else:
+            local = extract_label(body.image_base64)
+        seen = None
+        if use_ai:
+            import openai
+            try:
+                seen = vision.read_label(app.state.assistant.client(), MODEL, data)
+            except (openai.APIError, IndexError, AttributeError) as exc:
+                vision.log.warning('[BatteryImage] vision request failed: %s', type(exc).__name__)
+                if not (local and (local.get('model_candidates') or local.get('brand_candidates'))):
+                    raise HTTPException(502, vision.FAILURE) from None
+        reading = vision.combine(local, seen)
+        reply = (local or {'requires_confirmation': True, 'model_confirmed': False, 'photo_retained': False, 'engine': None}) | reading
+        reply['processing'] = 'ai' if seen else 'local'
+        reply['ai_hint'] = bool(app.state.assistant.vision and app.state.assistant.available() and not user['ai_consent'])
+        if not vision.DEBUG:
+            reply.pop('text', None)  # Raw label text can include a serial number.
+        return reply
 
     def validate_save(body):
         if not body.brand or not body.model or not body.model_confirmed or body.product_kind != 'power_bank':
-            raise HTTPException(422, '보조배터리 브랜드와 모델명을 직접 확인한 후 저장하세요.')
+            raise HTTPException(422, '브랜드와 모델명을 입력한 뒤 저장해주세요.')
         if body.demo and (normalize(body.brand) != 'DEMO LAB' or not normalize(body.model).startswith('DEMO PB-')):
-            raise HTTPException(422, '가상 시연에는 DEMO LAB 보조배터리만 저장할 수 있습니다.')
+            raise HTTPException(422, '연습용 예시는 예시 제품으로만 저장할 수 있습니다.')
         if not body.demo and (normalize(body.brand) == 'DEMO LAB' or body.scenario != 'complete'):
-            raise HTTPException(422, '실제 제품 조회에는 가상 브랜드와 시연용 장애 설정을 사용할 수 없습니다.')
+            raise HTTPException(422, '실제 제품에는 연습용 설정을 사용할 수 없습니다.')
 
     @app.get('/products')
     def products(user=Depends(current_user)):

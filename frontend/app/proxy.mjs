@@ -50,6 +50,6 @@ export async function proxy(request, context) {
     if (sessionCookie?.startsWith('batterycheck_session=')) responseHeaders['Set-Cookie'] = sessionCookie;
     return new Response(response.status === 204 ? null : text, { status: response.status, headers: responseHeaders });
   } catch {
-    return Response.json({ detail: '조회 미완료: 서버에 연결하지 못했습니다. 다시 연결한 뒤 조회하세요.' }, { status: 503 });
+    return Response.json({ detail: '서버에 연결하지 못해 리콜 여부를 확인하지 못했습니다. 잠시 후 다시 확인해주세요.' }, { status: 503 });
   }
 }

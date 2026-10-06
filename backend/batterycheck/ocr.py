@@ -45,7 +45,7 @@ def image_dimensions(data):
                 height, width = struct.unpack('>HH', data[i + 3:i + 7])
                 return width, height
             i += length
-    raise HTTPException(422, '일반 PNG 또는 JPEG 라벨 사진을 올려주세요.')
+    raise HTTPException(422, '이 사진 형식은 아직 지원하지 않아요. JPG, PNG 또는 WEBP 사진을 사용해주세요.')
 
 
 def engine_status():
@@ -70,7 +70,7 @@ def _vision_binary():
                                    check=True, timeout=90, capture_output=True)
                 except (OSError, subprocess.SubprocessError) as exc:
                     binary.unlink(missing_ok=True)
-                    raise HTTPException(503, '로컬 OCR 엔진을 준비하지 못했습니다. 직접 입력을 이용하세요.') from exc
+                    raise HTTPException(503, '지금은 사진을 읽을 수 없습니다. 브랜드와 모델명을 직접 입력해주세요.') from exc
     return binary
 
 
@@ -91,10 +91,10 @@ def candidates_from_text(lines):
     return {'text': text, 'brand_candidates': list(dict.fromkeys(brands))[:8],
             'model_candidates': list(dict.fromkeys(models))[:8], 'requires_confirmation': True,
             'model_confirmed': False, 'photo_retained': False,
-            'limitations': '사진에서 읽은 후보입니다. 브랜드·모델명을 라벨과 직접 대조하세요. 제조일·지역·로트는 추측하지 않습니다.'}
+            'limitations': '사진에서 읽은 값은 틀릴 수 있습니다. 라벨과 같은지 꼭 확인해주세요.'}
 
 
-def extract_label(image_base64):
+def decode_image(image_base64):
     if not isinstance(image_base64, str) or len(image_base64) > (MAX_BYTES * 4 // 3 + 4):
         raise HTTPException(413, '사진은 4MB 이하만 지원합니다.')
     try:
@@ -106,11 +106,16 @@ def extract_label(image_base64):
     width, height = image_dimensions(data)
     if not width or not height or width * height > 20_000_000:
         raise HTTPException(413, '사진 해상도는 2천만 화소 이하만 지원합니다.')
+    return data
+
+
+def extract_label(image_base64):
+    data = decode_image(image_base64)
     status = engine_status()
     if not status['available']:
-        raise HTTPException(503, 'OCR 엔진이 설치되지 않았습니다. 모델명을 직접 입력하세요.')
+        raise HTTPException(503, '지금은 사진을 읽을 수 없습니다. 브랜드와 모델명을 직접 입력해주세요.')
     if not _slots.acquire(blocking=False):
-        raise HTTPException(429, '다른 사진을 인식 중입니다. 잠시 후 다시 시도하세요.')
+        raise HTTPException(429, '다른 사진을 확인하는 중입니다. 잠시 후 다시 시도해주세요.')
     try:
         with tempfile.TemporaryDirectory(prefix='batterycheck-label-') as folder:
             image = Path(folder) / ('label.png' if data.startswith(b'\x89PNG') else 'label.jpg')
@@ -123,7 +128,7 @@ def extract_label(image_base64):
                 completed = subprocess.run(cmd, check=True, timeout=25, capture_output=True, text=True)
                 lines = json.loads(completed.stdout)['lines'] if status['engine'] == 'Apple Vision' else completed.stdout.splitlines()
             except (OSError, subprocess.SubprocessError, ValueError, KeyError) as exc:
-                raise HTTPException(422, '사진을 읽지 못했습니다. 라벨을 선명하게 촬영하거나 직접 입력하세요.') from exc
+                raise HTTPException(422, '사진을 읽지 못했습니다. 라벨이 선명하게 보이도록 다시 촬영하거나 직접 입력해주세요.') from exc
         result = candidates_from_text(lines)
         result.update(engine=status['engine'], processing='local')
         return result

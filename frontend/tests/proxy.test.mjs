@@ -26,7 +26,7 @@ test('backend outage is surfaced as incomplete instead of a negative recall verd
   try {
     const response = await proxy(request(), context('checks'));
     assert.equal(response.status, 503);
-    assert.match((await response.json()).detail, /조회 미완료/);
+    assert.match((await response.json()).detail, /확인하지 못했습니다/);
   } finally { globalThis.fetch = original; }
 });
 

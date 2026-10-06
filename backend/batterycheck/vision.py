@@ -1,0 +1,117 @@
+"""Label reading with a vision model. It only reads what is printed; recall decisions stay with the rule engine."""
+import base64
+import json
+import logging
+import os
+import re
+
+log = logging.getLogger('uvicorn.error')
+DEBUG = os.environ.get('BATTERYCHECK_DEBUG', '').lower() in {'1', 'true'}
+FIELDS = ('brand', 'product_name', 'model', 'lot_or_batch', 'serial_number')
+
+PROMPT = '''이 이미지는 보조배터리 또는 충전기 제품 라벨이다.
+
+사진에 실제로 보이는 글자만 읽어라. 보이지 않는 내용은 추측하지 마라. 제품 외형이나 로고만 보고 모델명을 짐작하지 마라. 이 결과는 리콜 확인에 쓰이므로 틀린 모델명은 없는 것보다 해롭다.
+
+다음 정보를 추출하라: brand, product_name, model, lot_or_batch, serial_number.
+
+특히 Model, Model No., Model Number, 모델명, 型番, LOT, Batch, S/N, Serial 주변을 자세히 확인하라. 모델명과 시리얼번호를 혼동하지 마라. 여러 숫자와 코드가 있어도 Model 표시 가까이에 있는 값만 model로 써라. 글자는 라벨에 적힌 그대로(하이픈, 접미사 포함) 옮겨라.
+
+보이지 않는 값은 null로 둔다. image_quality는 글자가 선명하면 "clear", 흐리거나 너무 작아 읽기 어려우면 "blurry", 라벨 글자가 보이지 않는 제품 사진이면 "no_label"이다. confidence는 각 값을 얼마나 확실히 읽었는지 0에서 1 사이로 적는다.
+
+JSON 객체 하나만 반환하라.'''
+
+_NULLABLE = {'type': ['string', 'null']}
+SCHEMA = {'type': 'object', 'additionalProperties': False,
+          'required': [*FIELDS, 'image_quality', 'confidence'],
+          'properties': {**{field: _NULLABLE for field in FIELDS},
+                         'image_quality': {'type': 'string', 'enum': ['clear', 'blurry', 'no_label']},
+                         'confidence': {'type': 'object', 'additionalProperties': False, 'required': list(FIELDS),
+                                        'properties': {field: {'type': 'number'} for field in FIELDS}}}}
+
+MESSAGES = {
+    'found': '사진에서 아래 정보를 찾았어요. 이 정보가 맞나요?',
+    'brand_only': '브랜드는 찾았지만 모델명을 확인하지 못했어요. 제품 뒷면이나 바닥에서 Model 또는 Model No. 부분을 가까이 촬영해주세요.',
+    'not_found': '제품 정보를 찾지 못했어요. 제품 뒷면이나 바닥에서 Model 또는 Model No. 글자가 보이도록 조금 더 가까이 촬영해주세요.',
+    'blurry': '사진이 흐려서 글자를 정확히 읽기 어려워요. 초점을 맞춘 뒤 다시 촬영해주세요.',
+    'unsure': '모델명을 정확히 확인하기 어려워요. 제품에 적힌 모델명을 확인해주세요.',
+}
+FAILURE = '사진을 확인하는 중 문제가 발생했어요. 직접 입력하거나 다시 시도해주세요.'
+
+
+def parse_reply(text):
+    """Tolerates code fences and stray prose around the JSON; unknown fields are dropped, missing ones default."""
+    match = re.search(r'\{.*\}', text or '', re.S)
+    try:
+        raw = json.loads(match.group(0)) if match else {}
+    except ValueError:
+        raw = {}
+    if not isinstance(raw, dict):
+        raw = {}
+    confidence = raw.get('confidence') if isinstance(raw.get('confidence'), dict) else {}
+    seen = {'image_quality': raw.get('image_quality') if raw.get('image_quality') in {'clear', 'blurry', 'no_label'} else 'clear',
+            'confidence': {}}
+    for field in FIELDS:
+        value = raw.get(field)
+        seen[field] = value.strip()[:80] if isinstance(value, str) and value.strip() and value.strip().lower() != 'null' else None
+        score = confidence.get(field)
+        seen['confidence'][field] = float(score) if isinstance(score, (int, float)) and not isinstance(score, bool) else 0.0
+    return seen
+
+
+def read_label(client, model, data):
+    """One vision request. The image travels as real image input, never as a description of it."""
+    import openai
+    media_type = 'image/png' if data.startswith(b'\x89PNG') else 'image/jpeg'
+    request = {'model': model, 'messages': [{'role': 'user', 'content': [
+        {'type': 'text', 'text': PROMPT},
+        {'type': 'image_url', 'image_url': {'url': f'data:{media_type};base64,' + base64.b64encode(data).decode()}}]}]}
+    log.info('[BatteryImage] vision request started')
+    try:
+        response = client.chat.completions.create(
+            **request, response_format={'type': 'json_schema', 'json_schema': {'name': 'label', 'strict': True, 'schema': SCHEMA}})
+    except openai.BadRequestError:
+        # Gateways that do not take a schema still get the same instruction; parse_reply handles free-form JSON.
+        response = client.chat.completions.create(**request)
+    seen = parse_reply(response.choices[0].message.content)
+    log.info('[BatteryImage] vision response received')
+    if DEBUG:
+        log.info('[BatteryImage] vision parsed result: %s', {k: v for k, v in seen.items() if k != 'serial_number'})
+    return seen
+
+
+def _same(a, b):
+    # Case, spaces and hyphens may differ between readings; any other character difference is a different model.
+    return re.sub(r'[\s-]', '', a).upper() == re.sub(r'[\s-]', '', b).upper()
+
+
+def combine(ocr, seen):
+    """Merge on-device text reading with the vision reading. Disagreement on the model is never auto-resolved."""
+    ocr = ocr or {}
+    brands, models = list(ocr.get('brand_candidates', [])), list(ocr.get('model_candidates', []))
+    result = {'brand': brands[0] if brands else None, 'model': models[0] if models else None,
+              'product_name': None, 'lot_or_batch': None, 'used_ai': seen is not None}
+    status = None
+    if seen:
+        result.update(brand=seen['brand'] or result['brand'], product_name=seen['product_name'], lot_or_batch=seen['lot_or_batch'])
+        if seen['brand'] and not any(_same(seen['brand'], b) for b in brands):
+            brands.insert(0, seen['brand'])
+        if seen['model']:
+            agrees = any(_same(seen['model'], m) for m in models)
+            if (models and not agrees) or (not models and seen['confidence']['model'] < 0.6):
+                models.insert(0, seen['model'])
+                result['model'], status = None, 'unsure'
+            else:
+                result['model'] = seen['model']
+                if not agrees:
+                    models.insert(0, seen['model'])
+        elif models:
+            # The vision reading saw no model; a lone text-pattern hit is not enough to present as found.
+            result['model'], status = None, 'unsure'
+        if not result['model'] and seen['image_quality'] == 'blurry':
+            status = 'blurry'
+    status = status or ('found' if result['model'] else 'brand_only' if result['brand'] else 'not_found')
+    result.update(status=status, message=MESSAGES[status], brand_candidates=brands[:8], model_candidates=models[:8])
+    log.info('[BatteryImage] extracted brand: %s', result['brand'])
+    log.info('[BatteryImage] extracted model: %s', result['model'])
+    return result

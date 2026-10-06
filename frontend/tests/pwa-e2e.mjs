@@ -22,7 +22,7 @@ try {
   assert.equal(manifest.name, '배터리체크');
   await context.setOffline(true);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  assert.match(await page.locator('body').innerText(), /현재 공식 공지와 내 보관함을 조회할 수 없습니다/);
+  assert.match(await page.locator('body').innerText(), /지금은 리콜 정보와 내 제품을 확인할 수 없습니다/);
   await page.locator('a[href="tel:119"]').waitFor();
   assert.equal(await page.locator('.saved-product').count(), 0);
   fs.writeFileSync(path.join(root, 'verification/pwa-result.json'), JSON.stringify({ status: 'passed', cached_paths: keys,

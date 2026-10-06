@@ -22,8 +22,8 @@ CURATED_PATH = Path(__file__).with_name("official_catalog.json")
 MAX_BYTES = 4 * 1024 * 1024
 MAX_RECORDS = 2000
 FRESH_FOR = timedelta(days=7)  # Application cache policy, not an agency SLA.
-LABELS = {"incomplete": "조회 미완료", "needs_identification": "제품 식별 필요",
-          "needs_information": "추가 확인 필요"}
+LABELS = {"incomplete": "리콜 여부를 확인하지 못했습니다", "needs_identification": "제품 정보를 더 입력해주세요",
+          "needs_information": "제품 정보를 조금 더 확인해주세요"}
 
 
 def _canonical(value):
@@ -121,7 +121,7 @@ def _api_notice(record, fetched_at):
         "last_publish_at": record.get("LastPublishDate"), "fetched_at": fetched_at,
         "content_hash": _digest(record), "evidence_kind": "official_api",
         "review_status": "pending", "search_text": "\n".join(search),
-        "action": "공식 원문에서 판매지역·일련번호·조치 절차를 확인하세요. 자동 대조는 대상 확정이 아닙니다.",
+        "action": "공식 공지에서 구매 국가, 일련번호, 조치 방법을 확인해주세요. 자동으로 찾은 결과만으로 리콜 대상이라고 단정할 수 없습니다.",
         "conditions": [], "raw": record,
     }
 
@@ -176,21 +176,21 @@ class OfficialService:
             state = "stale"
         curated_at = min((n.get("fetched_at", "") for n in curated), default=None)
         sources = [
-            {"id": "cpsc", "name": "CPSC 공개 리콜 API", "state": state,
+            {"id": "cpsc", "name": "미국 CPSC 리콜 정보 (자동 업데이트)", "state": state,
              "last_success_at": last_success, "last_attempt_at": meta.get("last_attempt_at"),
-             "scope": '미국 CPSC · ProductName="power bank" 검색 범위 · 전수 조회 아님',
+             "scope": '미국 CPSC의 보조배터리(power bank) 리콜 목록 · 모든 제품을 포함하지는 않습니다',
              "source_url": "https://www.cpsc.gov/Recalls", "synthetic": False,
              "error": meta.get("error"), "count": len(cache.get("records", [])),
              "notices_count": len(cache.get("records", []))},
-            {"id": "cpsc-curated", "name": "CPSC 공식 웹 확인 자료", "state": "curated" if _fresh(curated_at, now) else "stale" if curated else "unconfigured",
-             "last_success_at": curated_at, "scope": f"공식 웹에서 직접 확인한 공지 {len(curated)}건 · API 조회 아님 · 미국 범위",
+            {"id": "cpsc-curated", "name": "미국 CPSC 공식 공지", "state": "curated" if _fresh(curated_at, now) else "stale" if curated else "unconfigured",
+             "last_success_at": curated_at, "scope": f"공식 사이트에서 직접 확인한 공지 {len(curated)}건 · 미국 판매 제품 기준",
              "source_url": "https://www.cpsc.gov/Recalls", "synthetic": False, "count": len(curated),
              "notices_count": len(curated), "error": None},
-            {"id": "safety-korea", "name": "Safety Korea 국내 리콜", "state": "unconfigured",
-             "last_success_at": None, "scope": "인증키 발급 및 연동 미완료 · 국내 제품은 공식 사이트에서 별도 확인",
+            {"id": "safety-korea", "name": "Safety Korea (국내)", "state": "unconfigured",
+             "last_success_at": None, "scope": "아직 연결되지 않았습니다 · 국내 제품은 Safety Korea 사이트에서 직접 확인해주세요",
              "source_url": "https://www.safetykorea.kr/recall/recallBoard", "synthetic": False,
              "setup_url": "https://www.safetykorea.kr/release/openapi2", "notices_count": 0,
-             "error": "이용 승인·인증키·연동 미완료"},
+             "error": "연결 준비 중"},
         ]
         return {"state": state, "sources": sources, "notice_count": len(notices), "notices_count": len(notices),
                 "catalog_hash": _digest([(n["id"], n["content_hash"]) for n in notices]),
@@ -250,13 +250,13 @@ class OfficialService:
                     _atomic(self.data_dir / "cpsc-status.json", {"state": "available", "last_attempt_at": now, "error": None})
                     return self.status() | {"ok": True, "fetched_count": len(records)}
                 except httpx.HTTPStatusError as exc:
-                    error = f"CPSC 응답 HTTP {exc.response.status_code} · 마지막 저장 자료를 유지합니다."
+                    error = f"미국 CPSC 서버가 응답하지 않았습니다 (오류 {exc.response.status_code}). 저장된 정보를 그대로 사용합니다."
                     if exc.response.status_code < 500 and exc.response.status_code != 429:
                         break
                 except httpx.RequestError:
-                    error = "CPSC 네트워크 연결 또는 응답 시간 초과 · 마지막 저장 자료를 유지합니다."
+                    error = "미국 CPSC 서버에 연결하지 못했습니다. 저장된 정보를 그대로 사용합니다."
                 except (ValueError, TypeError, OSError):
-                    error = "CPSC 응답 형식·크기 검증 또는 저장 실패 · 마지막 검증 자료를 확인하세요."
+                    error = "미국 CPSC에서 받은 정보를 확인하지 못했습니다. 저장된 정보를 그대로 사용합니다."
                     break
                 if attempt == 0:
                     time.sleep(0.25)
@@ -271,12 +271,12 @@ class OfficialService:
                   "catalog_version": "cpsc-candidates-v1", "catalog_hash": status["catalog_hash"],
                   "status": "incomplete", "label": LABELS["incomplete"], "notices": [], "questions": [],
                   "sources": status["sources"], "risk": risk_guidance(product.signs, product.signs_answered),
-                  "limitations": "미국 CPSC 공지 일부의 후보 검색입니다. 국내 리콜·판매지역·일련번호·회수 자격을 확정하지 않으며 미발견은 안전 보증이 아닙니다.",
-                  "next_action": "공식 사이트에서 브랜드·모델과 판매지역·일련번호 조건을 확인하세요. 국내 조회는 미연결입니다.",
+                  "limitations": "지금은 미국(CPSC) 공식 리콜 공지 일부만 확인할 수 있습니다. 국내(Safety Korea) 정보는 아직 연결되지 않았습니다. 리콜 공지를 찾지 못했다고 해서 제품이 반드시 안전한 것은 아닙니다.",
+                  "next_action": "확인할 수 있는 공지에서는 이 제품을 찾지 못했습니다. 리콜이 없다는 뜻은 아니니 Safety Korea와 제조사 사이트에서도 확인해주세요.",
                   "coverage_complete": False}
         if not product.brand or not product.model or not product.model_confirmed or product.product_kind != "power_bank":
             result.update(status="needs_identification", label=LABELS["needs_identification"],
-                          next_action="보조배터리 라벨의 브랜드와 모델명을 직접 확인하세요. OCR 제안도 사용자 확인이 필요합니다.")
+                          next_action="제품 라벨에서 브랜드와 모델명을 확인해 입력해주세요. 사진에서 읽은 값은 라벨과 같은지 확인이 필요합니다.")
             return result
         for notice in notices:
             if notice["evidence_kind"] == "official_web_curated":
@@ -293,18 +293,18 @@ class OfficialService:
                                "expected": condition["expected"], "basis": condition["text"]})
                 result["questions"].append({"notice_id": notice["id"], "field": condition["field"], "text": condition["text"]})
             checks.append({"field": "notice_review", "state": "unknown", "input": None,
-                           "expected": ["공식 원문 조건·제조사 자격 확인"], "basis": "자동 검색 후보이며 조건 검토 미완료"})
+                           "expected": ["공식 공지와 제조사 안내 확인"], "basis": "자동으로 찾은 공지이며 직접 확인 필요"})
             result["questions"].append({"notice_id": notice["id"], "field": "notice_review",
-                                        "text": "공식 원문과 제조사 페이지에서 모든 적용 조건을 확인하세요. 모델 일치만으로 리콜 대상을 확정하지 않습니다."})
+                                        "text": "모델명이 같아도 모두 리콜 대상은 아닙니다. 공식 공지와 제조사 페이지에서 내 제품이 해당하는지 확인해주세요."})
             item = {key: value for key, value in notice.items() if key not in {"raw", "search_text", "brands", "excerpts"}}
             item.update(checks=checks, outcome="pending_review", review_status="pending", stale=not _fresh(notice["fetched_at"], now))
             result["notices"].append(item)
         if result["notices"]:
             if all(n["stale"] for n in result["notices"]):
-                result["next_action"] = "저장된 공지 자료가 만료되었습니다. 아래 후보 원문을 직접 확인하고 공식 API 갱신을 시도하세요."
+                result["next_action"] = "저장된 리콜 정보가 만료됐습니다. 아래 공식 공지를 직접 확인하고 최신 정보를 다시 확인해주세요."
             else:
                 result.update(status="needs_information", label=LABELS["needs_information"],
-                              next_action="관련 공식 공지 후보를 찾았습니다. 판매지역·일련번호·조치 조건을 원문에서 확인하세요. 대상 확정은 보류합니다.")
+                              next_action="모델명이 같은 공식 리콜 공지가 있습니다. 구매 국가와 일련번호까지 맞아야 리콜 대상입니다. 아래 공식 공지에서 확인해주세요.")
         if status["state"] == "failed":
-            result["next_action"] += " 최근 CPSC API 갱신은 실패했습니다."
+            result["next_action"] += " 최신 리콜 정보를 불러오는 데 실패해 저장된 정보로 확인했습니다."
         return result

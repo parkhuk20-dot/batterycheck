@@ -7,16 +7,16 @@ from .models import Catalog, ProductInput
 from .safety import risk_guidance
 
 LABELS = {
-    "matched": "리콜 대상 일치",
-    "needs_information": "추가 확인 필요",
-    "no_match": "조회 범위에서 일치 없음",
-    "needs_identification": "제품 식별 필요",
-    "incomplete": "조회 미완료",
+    "matched": "리콜 대상 제품과 일치합니다",
+    "needs_information": "제품 정보를 조금 더 확인해주세요",
+    "no_match": "현재 일치하는 리콜 공지는 없습니다",
+    "needs_identification": "제품 정보를 더 입력해주세요",
+    "incomplete": "리콜 여부를 확인하지 못했습니다",
 }
 QUESTIONS = {
-    "manufactured_on": "제조일을 확인하세요. 구매일로 대신하지 마세요.",
-    "sale_region": "공지의 판매지역을 확인하세요. 현재 위치로 대신하지 마세요.",
-    "lot": "라벨의 로트값을 확인하세요. 앞자리 0을 포함해 그대로 입력하세요.",
+    "manufactured_on": "제품에 적힌 제조일을 확인해주세요. 구매일로 대신하지 마세요.",
+    "sale_region": "제품을 구매한 국가를 확인해주세요. 지금 사는 곳과 다를 수 있습니다.",
+    "lot": "제품 뒷면의 LOT / 제조번호를 확인해주세요. 앞자리 0까지 그대로 입력하세요.",
 }
 CATALOG_PATH = Path(__file__).with_name("demo_catalog.json")
 
@@ -32,8 +32,8 @@ def evaluate(product: ProductInput, catalog_path=CATALOG_PATH, now=None):
         "checked_at": now.isoformat(), "synthetic": True, "catalog_version": None,
         "catalog_hash": None, "status": "incomplete", "notices": [], "questions": [],
         "sources": [], "risk": risk_guidance(product.signs, product.signs_answered),
-        "limitations": "가상 공지 기반 시연입니다. 실제 제품의 리콜·안전·회수 자격을 확인하지 않습니다.",
-        "next_action": "공식 출처를 직접 확인하세요. 공식 리콜 API와 AI는 연결되지 않았습니다.",
+        "limitations": "연습용 가상 공지로 확인한 결과입니다. 실제 제품의 리콜 여부가 아닙니다.",
+        "next_action": "공식 리콜 사이트에서 직접 확인해주세요.",
         "coverage_complete": False,
     }
 
@@ -42,7 +42,7 @@ def evaluate(product: ProductInput, catalog_path=CATALOG_PATH, now=None):
         return result
 
     if not product.brand or not product.model or not product.model_confirmed or product.product_kind != "power_bank":
-        result["next_action"] = "보조배터리 라벨의 브랜드와 모델명을 직접 확인하세요. 사진 AI는 미연결 상태입니다."
+        result["next_action"] = "제품 라벨에서 브랜드와 모델명을 확인해 입력해주세요."
         return finish("needs_identification")
     if not product.demo or normalize(product.brand) != "DEMO LAB" or not normalize(product.model).startswith("DEMO PB-"):
         result["synthetic"] = False
@@ -57,7 +57,7 @@ def evaluate(product: ProductInput, catalog_path=CATALOG_PATH, now=None):
         result["sources"] = [{"id": "demo-catalog", "name": "가상 공지 저장소",
                               "state": "failed", "last_success_at": None,
                               "scope": "파일 누락 또는 자료 검증 실패", "synthetic": True}]
-        result["next_action"] = "자료를 읽거나 검증하지 못했습니다. 복구 후 다시 대조하세요."
+        result["next_action"] = "리콜 정보를 불러오지 못했습니다. 잠시 후 다시 확인해주세요."
         return finish("incomplete")
 
     source = catalog.source.model_dump(mode="json")
@@ -104,17 +104,17 @@ def evaluate(product: ProductInput, catalog_path=CATALOG_PATH, now=None):
                                                 "text": QUESTIONS[check["field"]]})
             if outcome == "pending_review":
                 result["questions"].append({"notice_id": notice.id, "field": "notice_review",
-                                            "text": "공지 조건의 검토가 끝나지 않아 대상 일치를 확정할 수 없습니다."})
+                                            "text": "공지 내용의 검토가 끝나지 않아 아직 리콜 대상이라고 말할 수 없습니다."})
     outcomes = {n["outcome"] for n in result["notices"]}
     # Cached candidate evidence remains visible, but failed/stale coverage is not a current verdict.
     if not result["coverage_complete"]:
-        result["next_action"] = "가상 출처 조회가 실패했거나 자료가 오래되었습니다. 마지막 자료 시각을 확인하고 재대조하세요."
+        result["next_action"] = "리콜 정보를 불러오지 못했거나 정보가 오래됐습니다. 리콜이 없다는 뜻이 아닙니다. 잠시 후 다시 확인해주세요."
         return finish("incomplete")
     if "match" in outcomes:
-        result["next_action"] = "가상 공지의 조건과 조치 안내를 확인하세요. 실제 회수·교환 안내가 아닙니다."
+        result["next_action"] = "사용과 충전을 중지하고 공지의 조치 방법을 확인하세요. (연습용 가상 공지이며 실제 회수·교환 안내가 아닙니다.)"
         return finish("matched")
     if outcomes & {"unknown", "pending_review"}:
-        result["next_action"] = "아래 미확인 조건을 확인하고 다시 대조하세요."
+        result["next_action"] = "아래 내용을 확인해 입력한 뒤 다시 확인해주세요."
         return finish("needs_information")
-    result["next_action"] = "이 가상 공지 집합에서 일치하지 않았습니다. 실제 제품의 안전을 보증하지 않습니다."
+    result["next_action"] = "확인한 공지에서는 이 제품과 일치하는 리콜을 찾지 못했습니다. 리콜 공지가 없다는 것이 제품의 안전을 보증하지는 않습니다."
     return finish("no_match")
