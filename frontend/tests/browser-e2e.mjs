@@ -173,7 +173,7 @@ try {
     await saved.getByRole('button', { name: '입력 불러오기', exact: true }).click();
     await page.getByLabel('데모 출처 상태', { exact: false }).selectOption('outage');
     assert.equal(await page.getByLabel(/^제조일 /).inputValue(), '2026-02-15');
-    assert.equal(await page.getByLabel('판매지역', { exact: false }).inputValue(), 'DEMO-KR');
+    assert.equal(await page.getByRole('combobox', { name: '판매지역' }).inputValue(), 'DEMO-KR');
     assert.equal(await page.getByLabel(/^로트 /).inputValue(), '001A');
     assert.equal(await page.getByLabel('연기', { exact: true }).isChecked(), true);
     await saved.getByRole('button', { name: '확인 이력', exact: true }).click();
@@ -199,7 +199,7 @@ try {
     assert.equal(await page.getByLabel('가상 DEMO LAB 제품으로 시연합니다.', { exact: true }).isChecked(), false);
     assert.equal(await page.getByLabel('데모 출처 상태', { exact: false }).count(), 0);
     assert.equal(await page.getByLabel(/^제조일 /).inputValue(), '');
-    assert.equal(await page.getByLabel('판매지역', { exact: false }).inputValue(), '');
+    assert.equal(await page.getByRole('combobox', { name: '판매지역' }).inputValue(), '');
     assert.equal(await page.getByLabel(/^로트 /).inputValue(), '');
     assert.equal(await page.getByLabel('연기', { exact: true }).isChecked(), false);
     assert.equal(await page.locator('.history').count(), 0);
