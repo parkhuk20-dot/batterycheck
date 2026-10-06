@@ -1,0 +1,17 @@
+# Render Blueprint. Free plan has no persistent disk: accounts and records reset whenever the instance restarts or sleeps.
+services:
+  - type: web
+    name: batterycheck
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./deploy/render.Dockerfile
+    dockerContext: .
+    healthCheckPath: /
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        value: https://copa.codyssey.kr/v1
+      - key: BATTERYCHECK_AI_MODEL
+        value: gpt-5.4

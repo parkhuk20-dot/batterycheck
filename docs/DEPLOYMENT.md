@@ -8,6 +8,16 @@
 
 Mac 사진 인식은 Apple Vision을 사용합니다. 첫 실행에는 Swift 컴파일러가 필요하며 생성된 실행 파일은 `backend/.data/ocr`에 보관합니다. 사진 자체는 임시 폴더에서 처리하고 성공·실패 후 삭제합니다. 다른 운영체제에서는 Tesseract가 설치되어야 합니다. 이 도구를 자동으로 전역 설치하지 않습니다.
 
+## Render 배포
+
+`render.yaml`(Blueprint)과 `deploy/render.Dockerfile`이 웹과 API를 한 컨테이너로 올립니다. 이 Dockerfile은 로컬에 Docker가 없어 미리 빌드해 보지 못했으므로 첫 배포 로그를 확인해야 합니다.
+
+1. Render 대시보드에서 New → Blueprint → 이 GitHub 저장소를 선택합니다. 비공개 저장소는 Render의 GitHub 접근 허용이 필요합니다.
+2. `OPENAI_API_KEY` 입력란에 코디세이 콘솔의 OpenAI 호환 키를 넣습니다. 나머지 값은 `render.yaml`에 있습니다.
+3. 배포가 끝나면 `https://<서비스 이름>.onrender.com`에서 가입 → 조건 대조 → 저장 → AI 도우미 질문을 확인합니다.
+
+무료 플랜의 제한: 영구 디스크가 없어 인스턴스가 재시작되거나 15분 무접속으로 잠들면 계정·보관함·대화·의견이 모두 초기화됩니다. 잠든 뒤 첫 접속은 수십 초 걸립니다. 사용자 테스트 결과를 남기려면 유료 플랜에 디스크를 `/data`로 붙이거나, 테스트 직후 `feedback` 내용을 따로 보관해야 합니다. 허용 출처는 Render가 주는 `RENDER_EXTERNAL_URL`을 쓰며, 다른 도메인을 붙이면 `BATTERYCHECK_ALLOWED_ORIGINS`를 직접 지정합니다.
+
 ## 컨테이너 실행
 
 ```sh
