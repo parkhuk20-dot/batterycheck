@@ -6,13 +6,11 @@
 
 ## 팀원 및 역할
 
-| 이름 | 역할 | 담당 업무 |
-|---|---|---|
-| (기입 필요) | | |
-| (기입 필요) | | |
-| (기입 필요) | | |
-
-실제 담당과 기여를 확정한 뒤 적습니다.
+| 이름 | GitHub | 역할 | 담당 업무 |
+|---|---|---|---|
+| 박세진 | [parkhuk20-dot](https://github.com/parkhuk20-dot) | PM · Backend · AI | 서비스 기획과 일정 관리, FastAPI 백엔드, AI 안내 도우미(에이전트·문서 검색·대화 기억), 배포(Vercel·Turso) |
+| 김민주 | [zzangminju](https://github.com/zzangminju) | Frontend · UX | 화면 구성과 반응형 레이아웃, 사용자 문구와 접근성 점검, 디자인 개선, 발표 자료와 시연 준비 |
+| 한다혜 | [hdahye1130](https://github.com/hdahye1130) | Data · QA | 공식 리콜 출처 조사와 관리(CPSC·Safety Korea), 사용자 테스트 진행과 피드백 정리, 테스트 시나리오와 문서 |
 
 ## 기술 스택
 
