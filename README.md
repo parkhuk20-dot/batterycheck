@@ -128,6 +128,7 @@ node frontend/tests/ocr-eval.mjs
 - 배포 URL: https://batterycheck-beryl.vercel.app (Vercel 컨테이너 함수 + Turso DB)
 - 가상 데이터 체험 URL: https://batterycheck-beryl.vercel.app/?demo=1 (`가상 예시 채우기` 버튼으로 연습용 DEMO LAB 공지를 확인. 실제 리콜 공지가 아님)
 - 발표 자료: [발표 개요](docs/PRESENTATION.md) (슬라이드 작성 전), [시연 흐름](docs/DEMO_SCRIPT.md)
+- 제출 문서: [프로젝트 기획서 (PDF)](docs/BatteryCheck_프로젝트_기획서_최종.pdf) · [기능 요구 명세서 및 시스템 아키텍처 (PDF)](docs/BatteryCheck_기능요구명세서_및_시스템아키텍처_최종.pdf)
 - [기획서](docs/PROJECT_PLAN.md) · [요구사항 정의서](docs/REQUIREMENTS.md) · [구현 구조와 AI 설계](docs/ARCHITECTURE.md)
 - [과제 요건과 준비 상태](docs/CONTEST_READINESS.md) · [사용자 검증 절차](docs/USER_VALIDATION.md)
 - [공식 출처와 API 실행 증거](docs/SOURCES.md) · [배포 절차](docs/DEPLOYMENT.md) · [최종 검증 기록](verification/final_report.md)
