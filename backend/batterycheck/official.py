@@ -22,6 +22,12 @@ CURATED_PATH = Path(__file__).with_name("official_catalog.json")
 MAX_BYTES = 4 * 1024 * 1024
 MAX_RECORDS = 2000
 FRESH_FOR = timedelta(days=7)  # Application cache policy, not an agency SLA.
+# Safety Korea Open API (국가기술표준원 인터페이스 설계서 v2.0): GET with the issued key in the AuthKey header.
+KR_PATH = "www.safetykorea.kr/openapi/api/recall/recallList.json"
+KR_BOARD = "https://www.safetykorea.kr/recall/recallBoard"
+KR_ERRORS = {"4000": "Safety Korea 인증키가 올바르지 않습니다.", "4001": "Safety Korea에 등록되지 않은 접속 주소(IP)입니다.",
+             "4005": "Safety Korea 요청 형식이 올바르지 않습니다."}
+KR_RETRY = timedelta(minutes=10)
 LABELS = {"incomplete": "리콜 여부를 확인하지 못했습니다", "needs_identification": "제품 정보를 더 입력해주세요",
           "needs_information": "제품 정보를 조금 더 확인해주세요"}
 
@@ -126,6 +132,25 @@ def _api_notice(record, fetched_at):
     }
 
 
+def _kr_notice(record, fetched_at):
+    if not isinstance(record, dict) or not str(record.get("recallUid") or "").strip():
+        raise ValueError("invalid_record")
+    text = lambda key: record[key].strip() if isinstance(record.get(key), str) else ""
+    models = [m.strip() for m in text("recallModelName").split(",") if m.strip()]
+    brands = list(dict.fromkeys(b for b in (text("recallBrandName"), text("makerName"), text("recallCmpnyName")) if b))
+    published = text("publishDate")
+    action = text("publishActionDscr") or "Safety Korea 리콜 공지에서 조치 방법을 확인해주세요."
+    if text("recallInqryTel"):
+        action += f" 문의: {text('recallInqryTel')}"
+    return {"id": "kr-" + str(record["recallUid"]).strip(),
+            "title": f"{brands[0] if brands else ''} {text('recallProductName') or '제품'} 리콜 공지 (국내)".strip(),
+            "brands": brands, "models": models, "source_id": "safety-korea", "source_url": KR_BOARD,
+            "published_at": f"{published[:4]}-{published[4:6]}-{published[6:8]}" if len(published) == 8 else published,
+            "fetched_at": fetched_at, "content_hash": _digest(record), "evidence_kind": "official_api_kr",
+            "review_status": "pending", "action": action, "harm": text("harmDscr"), "conditions": [],
+            "search_text": "\n".join([text("recallProductName"), *brands, *models, text("harmDscr")])}
+
+
 class OfficialService:
     def __init__(self, data_dir, *, transport=None, clock=None, curated_path=CURATED_PATH):
         self.data_dir = Path(data_dir)
@@ -133,6 +158,77 @@ class OfficialService:
         self.clock = clock or (lambda: datetime.now(timezone.utc))
         self.curated_path = Path(curated_path)
         self.lock = threading.Lock()
+        self.kr_key = os.environ.get("SAFETYKOREA_API_KEY", "").strip()
+        self.kr_query = os.environ.get("SAFETYKOREA_QUERY", "보조배터리").strip()
+
+    def _load_kr(self):
+        cache = _read(self.data_dir / "safetykorea-cache.json", {})
+        meta = _read(self.data_dir / "safetykorea-status.json", {})
+        notices = []
+        try:
+            if isinstance(cache, dict) and cache:
+                if _digest(cache["records"]) != cache["records_hash"]:
+                    raise ValueError("cache_integrity")
+                notices = [_kr_notice(record, cache["fetched_at"]) for record in cache["records"]]
+        except (KeyError, ValueError, TypeError):
+            cache, notices = {}, []
+        return (cache if isinstance(cache, dict) else {}), (meta if isinstance(meta, dict) else {}), notices
+
+    def _sync_kr(self):
+        """Fetch the domestic recall list for the configured product name. The key travels only in the request header."""
+        now = self.clock().isoformat()
+        error = "Safety Korea에 연결하지 못했습니다. 저장된 정보를 그대로 사용합니다."
+        for scheme in ("https://", "http://"):  # The specification lists http; https is tried first to protect the key.
+            try:
+                with httpx.Client(timeout=httpx.Timeout(10, connect=5), follow_redirects=False, transport=self.transport) as client:
+                    response = client.get(scheme + KR_PATH, params={"conditionKey": "recallProductName", "conditionValue": self.kr_query},
+                                          headers={"AuthKey": self.kr_key, "Accept": "application/json"})
+                    response.raise_for_status()
+                    if len(response.content) > MAX_BYTES:
+                        raise ValueError("response_too_large")
+                    body = response.json()
+                code = str(body.get("resultCode"))
+                if code == "2004":
+                    records = []
+                elif code == "2000":
+                    records = body.get("resultData") or []
+                else:
+                    error = KR_ERRORS.get(code, f"Safety Korea가 오류를 반환했습니다 (코드 {code}).")
+                    break
+                if not isinstance(records, list) or len(records) > MAX_RECORDS:
+                    raise ValueError("invalid_shape")
+                for record in records:
+                    _kr_notice(record, now)
+                records.sort(key=lambda record: str(record["recallUid"]))
+                _atomic(self.data_dir / "safetykorea-cache.json", {"fetched_at": now, "records": records, "records_hash": _digest(records),
+                                                                    "query": self.kr_query})
+                _atomic(self.data_dir / "safetykorea-status.json", {"state": "available", "last_attempt_at": now, "error": None})
+                return True
+            except httpx.RequestError:
+                continue
+            except httpx.HTTPStatusError as exc:
+                error = f"Safety Korea 서버가 응답하지 않았습니다 (오류 {exc.response.status_code}). 저장된 정보를 그대로 사용합니다."
+                break
+            except (ValueError, TypeError, KeyError, AttributeError, OSError):
+                error = "Safety Korea에서 받은 정보를 확인하지 못했습니다. 저장된 정보를 그대로 사용합니다."
+                break
+        _atomic(self.data_dir / "safetykorea-status.json", {"state": "failed", "last_attempt_at": now, "error": error})
+        return False
+
+    def _refresh_kr_if_due(self):
+        # Serverless instances start with an empty cache, so the first lookup fills it instead of waiting for a manual refresh.
+        if not self.kr_key:
+            return
+        cache, meta, _ = self._load_kr()
+        now = self.clock()
+        attempted = _time(meta.get("last_attempt_at"))
+        if _fresh(cache.get("fetched_at"), now) or (attempted and now - attempted < KR_RETRY):
+            return
+        if self.lock.acquire(blocking=False):
+            try:
+                self._sync_kr()
+            finally:
+                self.lock.release()
 
     def _load(self):
         cache_path = self.data_dir / "cpsc-cache.json"
@@ -164,7 +260,7 @@ class OfficialService:
                     curated_notices.append(item)
         # A newer API copy takes precedence over manually captured evidence at the same URL.
         urls = {notice["source_url"] for notice in notices}
-        combined = notices + [notice for notice in curated_notices if notice["source_url"] not in urls]
+        combined = notices + [notice for notice in curated_notices if notice["source_url"] not in urls] + self._load_kr()[2]
         return cache, meta, curated_notices, sorted(combined, key=lambda notice: notice["id"])
 
     def status(self):
@@ -186,23 +282,34 @@ class OfficialService:
              "last_success_at": curated_at, "scope": f"공식 사이트에서 직접 확인한 공지 {len(curated)}건 · 미국 판매 제품 기준",
              "source_url": "https://www.cpsc.gov/Recalls", "synthetic": False, "count": len(curated),
              "notices_count": len(curated), "error": None},
-            {"id": "safety-korea", "name": "Safety Korea (국내)", "state": "unconfigured",
-             "last_success_at": None, "scope": "아직 연결되지 않았습니다 · 국내 제품은 Safety Korea 사이트에서 직접 확인해주세요",
-             "source_url": "https://www.safetykorea.kr/recall/recallBoard", "synthetic": False,
-             "setup_url": "https://www.safetykorea.kr/release/openapi2", "notices_count": 0,
-             "error": "연결 준비 중"},
+            self._kr_source(now),
         ]
         return {"state": state, "sources": sources, "notice_count": len(notices), "notices_count": len(notices),
                 "catalog_hash": _digest([(n["id"], n["content_hash"]) for n in notices]),
                 "last_success_at": last_success, "last_attempt_at": meta.get("last_attempt_at"),
                 "coverage_complete": False, "freshness_days": FRESH_FOR.days}
 
+    def _kr_source(self, now):
+        source = {"id": "safety-korea", "name": "Safety Korea (국내)", "source_url": KR_BOARD, "synthetic": False,
+                  "setup_url": "https://www.safetykorea.kr/release/openapi2", "last_success_at": None, "notices_count": 0, "error": None}
+        if not self.kr_key:
+            return source | {"state": "unconfigured", "scope": "국내 리콜은 Safety Korea 사이트에서 직접 확인해주세요. 자동 확인은 준비 중입니다."}
+        cache, meta, notices = self._load_kr()
+        state = meta.get("state", "not_synced")
+        if state == "available" and not _fresh(cache.get("fetched_at"), now):
+            state = "stale"
+        return source | {"state": state, "last_success_at": cache.get("fetched_at"), "last_attempt_at": meta.get("last_attempt_at"),
+                         "scope": f"국내 리콜 공지 중 제품명에 '{self.kr_query}'가 들어간 {len(notices)}건",
+                         "notices_count": len(notices), "count": len(notices), "error": meta.get("error")}
+
     def documents(self):
         """Retrieval corpus for the assistant: stored notices only, no network."""
         _, _, _, notices = self._load()
         documents = []
         for notice in notices:
-            if notice["evidence_kind"] == "official_web_curated":
+            if notice["evidence_kind"] == "official_api_kr":
+                parts = [" ".join(notice["brands"] + notice["models"]), notice["search_text"], notice["action"]]
+            elif notice["evidence_kind"] == "official_web_curated":
                 parts = [" ".join(notice["brands"] + notice["models"]), notice["action"],
                          *(c["text"] for c in notice.get("conditions", [])), *notice.get("excerpts", [])]
             else:
@@ -212,7 +319,14 @@ class OfficialService:
         return documents
 
     def sync(self):
-        """Only this explicit operation calls the network; no product data is sent."""
+        """Refreshes every configured official source; no product data is sent."""
+        result = self._sync_cpsc()
+        if self.kr_key:
+            with self.lock:
+                result["domestic_ok"] = self._sync_kr()
+        return self.status() | {key: result[key] for key in ("ok", "error", "fetched_count", "domestic_ok") if key in result}
+
+    def _sync_cpsc(self):
         with self.lock:
             now = self.clock().isoformat()
             error = "공식 API 조회 실패"
@@ -264,6 +378,7 @@ class OfficialService:
             return self.status() | {"ok": False, "error": error}
 
     def evaluate(self, product: ProductInput):
+        self._refresh_kr_if_due()
         now = self.clock()
         status = self.status()
         _, _, _, notices = self._load()
@@ -278,14 +393,24 @@ class OfficialService:
             result.update(status="needs_identification", label=LABELS["needs_identification"],
                           next_action="제품 라벨에서 브랜드와 모델명을 확인해 입력해주세요. 사진에서 읽은 값은 라벨과 같은지 확인이 필요합니다.")
             return result
+        domestic = next(source for source in status["sources"] if source["id"] == "safety-korea")
+        if domestic["state"] == "available":
+            result["limitations"] = "미국(CPSC) 공식 리콜 공지 일부와 국내(Safety Korea) 보조배터리 리콜 공지를 확인했습니다. 리콜 공지를 찾지 못했다고 해서 제품이 반드시 안전한 것은 아닙니다."
+            result["next_action"] = "확인한 공지에서는 이 제품을 찾지 못했습니다. 리콜이 없다는 뜻은 아니니 제조사 안내도 함께 확인해주세요."
         for notice in notices:
-            if notice["evidence_kind"] == "official_web_curated":
+            brand_state = "match"
+            if notice["evidence_kind"] == "official_api_kr":
+                # Domestic notices often write the brand in Korean or name the importer, so only the model must match exactly.
+                candidate = _norm(product.model) in {_norm(m) for m in notice["models"]}
+                known = [_norm(b) for b in notice["brands"]]
+                brand_state = "match" if any(_norm(product.brand) in b or b in _norm(product.brand) for b in known) else "unknown"
+            elif notice["evidence_kind"] == "official_web_curated":
                 candidate = _norm(product.brand) in {_norm(b) for b in notice["brands"]} and _norm(product.model) in {_norm(m) for m in notice["models"]}
             else:
                 candidate = _token(product.brand, notice["search_text"]) and _token(product.model, notice["search_text"])
             if not candidate:
                 continue
-            checks = [{"field": "brand", "state": "match", "input": product.brand, "expected": [product.brand], "basis": "공식 공지 내 식별자 후보 · 자격 확인 아님"},
+            checks = [{"field": "brand", "state": brand_state, "input": product.brand, "expected": notice.get("brands") or [product.brand], "basis": "공식 공지 내 식별자 후보 · 자격 확인 아님"},
                       {"field": "model", "state": "match", "input": product.model, "expected": [product.model], "basis": "접미사·하이픈을 보존한 모델 식별자 대조"}]
             for condition in notice.get("conditions", []):
                 # Serial numbers intentionally stay on the manufacturer's site, not the user's lot field.

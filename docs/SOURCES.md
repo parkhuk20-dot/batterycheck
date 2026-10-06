@@ -35,8 +35,13 @@ API 장애 때도 확인할 수 있도록 공식 CPSC 웹 원문에서 다음 2�
 
 - 공식 이용 절차: https://www.safetykorea.kr/release/openapi2
 - 공식 직접 검색: https://www.safetykorea.kr/recall/recallBoard
+- 근거 문서: 국가기술표준원 「Open API 인터페이스 설계서 (서비스 제공용) v2.0, 2025-06-30」
 
-공식 페이지에서 이용 신청·승인 후 인증키가 발급되고 키가 필수임을 확인했다. 이 프로젝트는 승인·키 발급·실제 API 응답 검증을 완료하지 않았다. 상태를 `unconfigured`로 표시하고 직접 검색 링크를 제공한다. 키 신청 이메일을 발송하거나 공공데이터 이용 승인을 신청하지 않았다. 이 부분은 사용자 명의의 신청·승인이 필요한 외부 의존성이다.
+연동 방식(`official.py`): 설계서의 국내리콜정보 조회 `GET www.safetykorea.kr/openapi/api/recall/recallList.json?conditionKey=recallProductName&conditionValue=보조배터리`를 호출하고, 발급받은 인증키를 HTTP 헤더 `AuthKey`에 넣는다. 응답의 `resultCode` 2000은 성공, 2004는 데이터 없음, 4000은 인증키 오류, 4001은 허용되지 않은 IP다. 인증키는 환경변수 `SAFETYKOREA_API_KEY`로만 받고 코드·로그·응답에 넣지 않는다. 검색어는 `SAFETYKOREA_QUERY`로 바꿀 수 있다.
+
+대조: 국내 공지는 브랜드를 한글이나 수입사명으로 적는 경우가 있어 모델명이 정확히 같을 때만 후보로 보여 주고, 브랜드가 다르면 "확인 필요"로 둔다. 후보를 리콜 대상으로 확정하지 않는다.
+
+상태(2026-10-06): 인증키는 신청서를 이메일(safetykorea@korea.kr)로 보내 승인받아야 발급된다. 아직 키가 없어 **실제 API 호출과 응답 형식 검증은 하지 못했다.** 테스트는 설계서의 예시 응답 형식을 흉내 낸 가짜 서버로만 했다. 키가 없으면 요청을 보내지 않고 "직접 확인" 안내만 표시한다. 설계서에 `Invalid IP` 코드가 있어 접속 IP 제한이 있을 수 있으며, IP가 고정되지 않는 Vercel에서는 실패할 가능성이 있다.
 
 ## 검증 해석
 
