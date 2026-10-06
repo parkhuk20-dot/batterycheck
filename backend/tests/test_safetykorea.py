@@ -51,7 +51,7 @@ class SafetyKoreaTests(unittest.TestCase):
         notice = result['notices'][0]
         self.assertEqual((notice['published_at'], notice['source_url']), ('2026-09-01', 'https://www.safetykorea.kr/recall/recallBoard'))
         self.assertIn('080-000-0000', notice['action'])
-        self.assertEqual({c['field']: c['state'] for c in notice['checks']}, {'brand': 'match', 'model': 'match', 'notice_review': 'unknown'})
+        self.assertEqual({c['field']: c['state'] for c in notice['checks']}, {'brand': 'match', 'model': 'match', 'sale_region': 'unknown', 'notice_review': 'unknown'})
         source = self.domestic(service)
         self.assertEqual((source['state'], source['notices_count'], source['last_success_at']), ('available', 1, NOW.isoformat()))
         service.evaluate(ProductInput(brand='테스트전자', model='TB-10000', **PRODUCT))

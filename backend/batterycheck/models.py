@@ -23,6 +23,8 @@ class ProductInput(StrictModel):
     signs: list[Sign] = Field(default_factory=list, max_length=8)
     signs_answered: StrictBool = False
     scenario: Literal["complete", "outage", "stale"] = "complete"
+    # The user's own answer after reading the official notice or the maker's serial-number page.
+    official_check: Literal["unknown", "affected", "not_affected"] = "unknown"
 
     @field_validator("manufactured_on", mode="before")
     @classmethod

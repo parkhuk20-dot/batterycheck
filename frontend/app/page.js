@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import safety from '../../shared/safety.json';
 
 const empty = { brand: '', model: '', model_confirmed: false, product_kind: 'power_bank', demo: false,
-  manufactured_on: '', sale_region: '', lot: '', signs: [], signs_answered: false, scenario: 'complete' };
+  manufactured_on: '', sale_region: '', lot: '', signs: [], signs_answered: false, scenario: 'complete', official_check: 'unknown' };
 const signLabels = { smoke: '연기', flame: '불꽃', swelling: '배터리가 부풀어 오름', damage: '제품이 깨지거나 손상됨', discoloration: '색이 변함', heat: '평소보다 심하게 뜨거움', odor: '이상한 냄새가 남', sound: '이상한 소리가 남' };
 const fields = { model: '모델명', brand: '브랜드', manufactured_on: '제조일', sale_region: '구매 국가/지역', lot: 'LOT / 제조번호', serial: '일련번호', serial_number: '일련번호', notice_review: '공지 내용 확인' };
 const conditionLabels = { match: '일치', mismatch: '다름', unknown: '확인 필요' };
@@ -199,7 +199,7 @@ export default function Home() {
       if (field === 'demo') return { ...empty, demo: value, signs: current.signs, signs_answered: current.signs_answered };
       const next = { ...current, [field]: value };
       // Typing the brand and model yourself is the confirmation; values read from a photo go through the photo result buttons.
-      if (['brand', 'model'].includes(field)) next.model_confirmed = Boolean(next.model.trim());
+      if (['brand', 'model'].includes(field)) { next.model_confirmed = Boolean(next.model.trim()); next.official_check = 'unknown'; }
       return next;
     });
     setResult(null); setHistory(null); setDirty(true); setMessage('');
@@ -211,7 +211,7 @@ export default function Home() {
   function check(event) { event.preventDefault(); return runCheck(form); }
   async function runCheck(next) { await run(async () => { setResult(null); const found = await guardedApi('checks', 'POST', bodyFor(next)); setResult(found); if (found.status === 'needs_information') setMoreOpen(true); setDirty(false); setServer('서버 연결됨'); }); }
   async function save() { await run(async () => { const saved = await guardedApi(selectedId ? `products/${selectedId}` : 'products', selectedId ? 'PUT' : 'POST', bodyFor(form)); setSelectedId(saved.id); setResult(saved.latest_result); setDirty(false); setProducts(current => [saved, ...current.filter(p => p.id !== saved.id)]); setHistory(null); setMessage('내 제품에 저장했습니다.'); }); }
-  function selectProduct(product) { const input = { ...product.input, manufactured_on: product.input.manufactured_on || '', sale_region: product.input.sale_region || '', lot: product.input.lot || '' }; resetForm(input); setSelectedId(product.id); setOcr(null); setMoreOpen(Boolean(input.manufactured_on || input.sale_region || input.lot)); setMessage('저장된 내용을 불러왔습니다. 최신 정보로 다시 확인해주세요.'); }
+  function selectProduct(product) { const input = { ...product.input, official_check: product.input.official_check || 'unknown', manufactured_on: product.input.manufactured_on || '', sale_region: product.input.sale_region || '', lot: product.input.lot || '' }; resetForm(input); setSelectedId(product.id); setOcr(null); setMoreOpen(Boolean(input.manufactured_on || input.sale_region || input.lot)); setMessage('저장된 내용을 불러왔습니다. 최신 정보로 다시 확인해주세요.'); }
   async function action(product, state) { await run(async () => { const updated = await guardedApi(`products/${product.id}/action`, 'PATCH', { state }); setProducts(current => current.map(p => p.id === product.id ? updated : p)); setHistory(null); setMessage('조치 상태를 기록했습니다. 사용 재개 허가나 회수 인증이 아닙니다.'); }); }
   async function remove(product) { await run(async () => { await guardedApi(`products/${product.id}`, 'DELETE'); setProducts(current => current.filter(p => p.id !== product.id)); setHistory(null); setNotifications(current => current.filter(n => n.product_id !== product.id)); if (selectedId === product.id) { setSelectedId(null); setHistory(null); setResult(null); setDirty(true); } setMessage('제품과 확인 기록을 삭제했습니다.'); }); }
   function sample() { resetForm({ ...empty, brand: 'DEMO LAB', model: 'DEMO PB-100', model_confirmed: true, demo: true, manufactured_on: '2026-02-15', sale_region: 'DEMO-KR', lot: '001A' }); setSelectedId(null); setOcr(null); setMoreOpen(true); setMessage('연습용 가상 예시입니다. 실제 리콜 공지가 아닙니다.'); }
@@ -220,6 +220,8 @@ export default function Home() {
   function applyPhoto(search, brand = ocr.brand || '', model = ocr.model || '') { const next = { ...empty, brand, model, model_confirmed: Boolean(model) }; resetForm(next); setSelectedId(null); setMoreOpen(false); setOcr(null); if (search) return runCheck(next); setMessage('브랜드와 모델명을 라벨과 비교해 고친 뒤 리콜 정보를 확인해주세요.'); document.querySelector(model ? 'input[name=brand]' : 'input[name=model]')?.focus(); }
   function retake() { (window.matchMedia('(pointer: coarse)').matches ? cameraInput : photoInput).current?.click(); }
   async function sync() { await run(async () => { const data = await guardedApi('sources/sync', 'POST', {}); setSourceStatus(data.source_status); await loadPrivate(); setMessage(`최신 정보를 다시 확인했습니다. 내 제품 ${data.rechecked ?? 0}개를 다시 확인했고 새 알림은 ${data.notifications_created ?? 0}건입니다.`); }); }
+  // The answer changes the outcome, so the lookup runs again at once with it.
+  function answerOfficial(value) { const next = { ...form, official_check: value }; setForm(next); return runCheck(next); }
   function explain() { setAskSeed({ text: `${form.brand} ${form.model} 확인 결과가 "${result.label}"인데, 무슨 뜻이고 지금 무엇을 해야 하는지 쉽게 설명해 주세요.` }); document.getElementById('assistant')?.scrollIntoView({ behavior: 'smooth' }); }
   const sourceItems = Array.isArray(sourceStatus?.sources) ? sourceStatus.sources : [];
   const domesticReady = sourceItems.some(s => s.id === 'safety-korea' && s.state !== 'unconfigured');
@@ -258,6 +260,7 @@ export default function Home() {
         </fieldset></form>
         <details className="emergency-link"><summary>연기, 불꽃, 심한 발열이 있나요? 긴급 안전 안내 보기</summary><p>제품 검색을 계속하지 말고 사용과 충전을 중지하세요. 위험하면 안전한 곳으로 이동한 뒤 119에 신고하세요.</p><a className="phone" href="tel:119">119 전화 연결</a><Sources sources={[safety.sources[0], safety.sources[2]]} /></details>
         {result ? <><Result result={result} onExplain={meta?.assistant?.available ? explain : undefined} />
+          {result.notices?.length > 0 && !form.demo && <fieldset className="signs official-check" disabled={busy}><legend>공식 공지에서 내 제품이 리콜 대상인지 확인했나요?</legend><p className="small">위의 공식 공지나 제조사 페이지에서 일련번호 등 조건을 직접 확인한 뒤 골라주세요. 일련번호는 이 서비스에 입력하지 않습니다.</p><div className="symptom-choice">{[['unknown', '아직 확인하지 않았어요'], ['affected', '대상이었어요'], ['not_affected', '대상이 아니었어요']].map(([value, label]) => <label className="checkbox" key={value}><input type="radio" name="official-check" checked={(form.official_check || 'unknown') === value} onChange={() => answerOfficial(value)} />{label}</label>)}</div></fieldset>}
           {result.status !== 'needs_identification' && <div className="save-offer"><strong>이 제품을 저장하시겠어요?</strong><p className="small">저장해 두면 새로운 리콜이 등록됐을 때 다시 확인하기 쉽습니다.{user && !form.brand.trim() && ' 저장하려면 브랜드도 입력해주세요.'}</p>{user ? <button type="button" disabled={busy || !canSave} onClick={save}>{selectedId ? '다시 확인한 결과 저장' : '내 제품에 저장'}</button> : <a className="button-link" href="#account">로그인하고 저장</a>}</div>}</>
           : <div className="empty-result"><strong>모델명만 있어도 확인할 수 있습니다</strong><p>내용을 고치면 다시 확인해야 합니다.</p></div>}
       </section>

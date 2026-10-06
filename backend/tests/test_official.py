@@ -77,6 +77,36 @@ class OfficialTests(unittest.TestCase):
             self.assertEqual(self.service().evaluate(product(**changes))['status'], 'needs_identification')
         self.assertEqual(self.requests, [])
 
+    def test_purchase_country_and_the_users_own_check_decide_the_outcome(self):
+        def run(**changes):
+            result = self.service().evaluate(product(**changes))
+            return result['status'], {c['field']: c['state'] for c in result['notices'][0]['checks']}, result['next_action']
+        status, checks, action = run()
+        self.assertEqual((status, checks['sale_region'], checks['serial_number']), ('needs_information', 'unknown', 'unknown'))
+        status, checks, action = run(sale_region='KR')
+        self.assertEqual((status, checks['sale_region']), ('needs_information', 'mismatch'))
+        self.assertIn('구매 국가가 공지 대상과 다릅니다', action)
+        status, checks, action = run(sale_region='US')
+        self.assertEqual((status, checks['sale_region']), ('needs_information', 'match'))
+        self.assertIn('일련번호까지 확인', action)
+        status, checks, action = run(sale_region='US', official_check='affected')
+        self.assertEqual((status, checks['serial_number'], checks['notice_review']), ('matched', 'match', 'match'))
+        self.assertIn('사용과 충전을 중지', action)
+        self.assertIn('직접 확인했다고 답하신', action)
+        status, checks, action = run(sale_region='US', official_check='not_affected')
+        self.assertEqual((status, checks['serial_number']), ('no_match', 'mismatch'))
+
+    def test_an_unlisted_model_is_no_match_only_when_the_official_list_was_read(self):
+        service = self.service()
+        missing = service.evaluate(product(brand='Other', model='ZZ-999'))
+        self.assertEqual(missing['status'], 'incomplete')
+        self.assertIn('공식 리콜 데이터를 아직 불러오지 못했습니다', missing['next_action'])
+        service.sync()
+        found = service.evaluate(product(brand='Other', model='ZZ-999'))
+        self.assertEqual((found['status'], found['label']), ('no_match', '현재 일치하는 리콜 공지는 없습니다'))
+        self.assertIn('국내(Safety Korea) 리콜은 포함되지 않았습니다', found['limitations'])
+        self.assertIn('반드시 안전한 것은 아닙니다', found['limitations'])
+
     def test_a_missing_brand_does_not_block_the_model_lookup(self):
         result = self.service().evaluate(product(brand=''))
         self.assertEqual(result['status'], 'needs_information')
@@ -111,7 +141,7 @@ class OfficialTests(unittest.TestCase):
         for brand, model in [('Brand', 'FX-00'), ('Fixture Brand', '001'), ('Fixture Brand', 'FX'), ('Fixture', 'FX-001X')]:
             result = service.evaluate(product(brand=brand, model=model))
             self.assertEqual(result['notices'], [])
-            self.assertEqual(result['status'], 'incomplete')
+            self.assertEqual(result['status'], 'no_match')
 
     def test_catalog_hash_does_not_change_for_rechecks_or_refetch_timestamps(self):
         service = self.service()

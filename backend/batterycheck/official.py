@@ -34,7 +34,22 @@ KR_ERRORS = {"4000": "Safety Korea 인증키가 올바르지 않습니다.", "40
              "4005": "Safety Korea 요청 형식이 올바르지 않습니다."}
 KR_RETRY = timedelta(minutes=10)
 LABELS = {"incomplete": "리콜 여부를 확인하지 못했습니다", "needs_identification": "제품 정보를 더 입력해주세요",
-          "needs_information": "제품 정보를 조금 더 확인해주세요"}
+          "needs_information": "제품 정보를 조금 더 확인해주세요", "matched": "리콜 대상 제품과 일치합니다",
+          "no_match": "현재 일치하는 리콜 공지는 없습니다"}
+REGION_NAMES = {"US": "미국", "KR": "대한민국"}
+
+
+def _region_state(value, notice):
+    """Compare the purchase country with the market the notice covers. Unknown input stays unknown."""
+    home = "KR" if notice["evidence_kind"] == "official_api_kr" else "US"
+    if not value:
+        return home, "unknown"
+    if value == home:
+        return home, "match"
+    # CPSC notices issued jointly with Canada or Mexico also cover those markets, which the form only knows as "other".
+    if value == "OTHER" and (notice.get("raw") or {}).get("Inconjunctions"):
+        return home, "unknown"
+    return home, "mismatch"
 
 
 def _canonical(value):
@@ -498,29 +513,64 @@ class OfficialService:
                 brand_state = "match" if product.brand else "unknown"
             if not candidate:
                 continue
+            home, region = _region_state(product.sale_region, notice)
+            # What the user found on the official notice or the maker's serial page; the service never sees the serial itself.
+            reviewed = {"affected": "match", "not_affected": "mismatch"}.get(product.official_check, "unknown")
             checks = [{"field": "brand", "state": brand_state, "input": product.brand or None, "expected": notice.get("brands") or [product.brand or "공지 확인"], "basis": "공식 공지 내 식별자 후보 · 자격 확인 아님"},
                       {"field": "model", "state": "match", "input": product.model, "expected": [product.model], "basis": "접미사·하이픈을 보존한 모델 식별자 대조"}]
-            for condition in notice.get("conditions", []):
-                # Serial numbers intentionally stay on the manufacturer's site, not the user's lot field.
-                checks.append({"field": condition["field"], "state": "unknown", "input": product.sale_region if condition["field"] == "sale_region" else None,
-                               "expected": condition["expected"], "basis": condition["text"]})
-                result["questions"].append({"notice_id": notice["id"], "field": condition["field"], "text": condition["text"]})
-            checks.append({"field": "notice_review", "state": "unknown", "input": None,
-                           "expected": ["공식 공지와 제조사 안내 확인"], "basis": "자동으로 찾은 공지이며 직접 확인 필요"})
-            result["questions"].append({"notice_id": notice["id"], "field": "notice_review",
-                                        "text": "모델명이 같아도 모두 리콜 대상은 아닙니다. 공식 공지와 제조사 페이지에서 내 제품이 해당하는지 확인해주세요."})
+            conditions = list(notice.get("conditions", []))
+            if not any(c["field"] == "sale_region" for c in conditions):
+                conditions.insert(0, {"field": "sale_region", "expected": [f"{REGION_NAMES[home]} 판매 제품"],
+                                      "text": f"이 공지는 {REGION_NAMES[home]}에서 판매된 제품이 대상입니다. 제품을 구매한 국가를 확인해주세요."})
+            for condition in conditions:
+                if condition["field"] == "sale_region":
+                    state, shown = region, REGION_NAMES.get(product.sale_region, "그 밖의 지역" if product.sale_region else None)
+                else:
+                    state, shown = reviewed, {"match": "대상이라고 확인함", "mismatch": "대상이 아니라고 확인함"}.get(reviewed)
+                checks.append({"field": condition["field"], "state": state, "input": shown, "expected": condition["expected"], "basis": condition["text"]})
+                if state == "unknown":
+                    result["questions"].append({"notice_id": notice["id"], "field": condition["field"], "text": condition["text"]})
+            checks.append({"field": "notice_review", "state": reviewed, "input": {"match": "대상이라고 확인함", "mismatch": "대상이 아니라고 확인함"}.get(reviewed),
+                           "expected": ["공식 공지와 제조사 안내 확인"], "basis": "사용자가 공식 공지에서 직접 확인한 결과"})
+            if reviewed == "unknown":
+                result["questions"].append({"notice_id": notice["id"], "field": "notice_review",
+                                            "text": "모델명이 같아도 모두 리콜 대상은 아닙니다. 공식 공지와 제조사 페이지에서 내 제품이 해당하는지 확인해주세요."})
             item = {key: value for key, value in notice.items() if key not in {"raw", "search_text", "brands", "models", "excerpts"}}
-            item.update(checks=checks, outcome="pending_review", review_status="pending", stale=not _fresh(notice["fetched_at"], now))
+            item.update(checks=checks, outcome={"match": "match", "mismatch": "mismatch"}.get(reviewed, "pending_review"), region=region,
+                        review_status="pending", stale=not _fresh(notice["fetched_at"], now))
             result["notices"].append(item)
+        outcomes = {n["outcome"] for n in result["notices"]}
         if result["notices"]:
-            if all(n["stale"] for n in result["notices"]):
+            if "match" in outcomes:
+                result.update(status="matched", label=LABELS["matched"],
+                              next_action="사용과 충전을 중지하고 아래 공식 공지의 조치 방법(환불·교환 등)을 따라주세요. 공식 공지에서 대상이라고 직접 확인했다고 답하신 내용을 기준으로 한 결과입니다.")
+            elif outcomes == {"mismatch"}:
+                result.update(status="no_match", label=LABELS["no_match"],
+                              next_action="모델명이 같은 공지가 있지만 공식 공지에서 대상이 아니라고 확인하셨습니다. 새 리콜이 등록될 수 있으니 제품을 저장해 두고 다시 확인해주세요.")
+            elif all(n["stale"] for n in result["notices"]):
                 result["next_action"] = "저장된 리콜 정보가 만료됐습니다. 아래 공식 공지를 직접 확인하고 최신 정보를 다시 확인해주세요."
             else:
-                result.update(status="needs_information", label=LABELS["needs_information"],
-                              next_action="모델명이 같은 공식 리콜 공지가 있습니다. 구매 국가와 일련번호까지 맞아야 리콜 대상입니다. 아래 공식 공지에서 확인해주세요.")
-        if status["state"] == "failed":
-            result["next_action"] += " 최신 리콜 정보를 불러오는 데 실패해 저장된 정보로 확인했습니다."
-        if not result["notices"] and status["state"] in {"failed", "not_synced"} and not status["sources"][0]["count"]:
+                regions = {n["region"] for n in result["notices"]}
+                if regions == {"mismatch"}:
+                    action = "모델명이 같은 리콜 공지가 있지만 구매 국가가 공지 대상과 다릅니다. 이 공지의 회수·교환 대상이 아닐 수 있습니다. 같은 모델이므로 제조사와 Safety Korea에서 국내 조치가 있는지 확인해주세요."
+                elif "match" in regions:
+                    action = "모델명과 구매 국가가 리콜 공지와 같습니다. 아래 공식 공지나 제조사 페이지에서 일련번호까지 확인한 뒤, 확인한 결과를 선택해주세요."
+                else:
+                    action = "모델명이 같은 공식 리콜 공지가 있습니다. 구매 국가와 일련번호까지 맞아야 리콜 대상입니다. 구매 국가를 입력하고 아래 공식 공지에서 확인해주세요."
+                result.update(status="needs_information", label=LABELS["needs_information"], next_action=action)
+        elif status["sources"][0]["count"]:
+            # The official list was read and holds nothing for this model: a real "none found", with its scope stated.
+            covered = "미국(CPSC)과 국내(Safety Korea)" if domestic["state"] == "available" else "미국(CPSC)"
+            result.update(status="no_match", label=LABELS["no_match"],
+                          limitations=f"{covered}의 보조배터리 공식 리콜 공지 {status['notice_count']}건을 확인했습니다."
+                          + ("" if domestic["state"] == "available" else " 국내(Safety Korea) 리콜은 포함되지 않았습니다.")
+                          + " 리콜 공지가 없다고 해서 제품이 반드시 안전한 것은 아닙니다.",
+                          next_action="확인한 공식 정보에서는 이 제품과 일치하는 리콜을 찾지 못했습니다. "
+                          + ("" if domestic["state"] == "available" else "국내에서 구매했다면 Safety Korea에서도 확인해주세요. ")
+                          + "앞으로 새 리콜이 등록될 수 있으니 제품을 저장해 두면 다시 확인하기 쉽습니다.")
+        else:
             # An empty list is not a negative result: say the data is missing, not that nothing was found.
             result["next_action"] = "공식 리콜 데이터를 아직 불러오지 못했습니다. 현재 리콜 여부를 확인할 수 없습니다. 잠시 후 다시 확인해주세요."
+        if status["state"] == "failed" and result["status"] != "incomplete":
+            result["next_action"] += " 최신 리콜 정보를 불러오는 데 실패해 저장된 정보로 확인했습니다."
         return result

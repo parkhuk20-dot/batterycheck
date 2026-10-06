@@ -11,3 +11,4 @@ header{gap:12px}.brand{min-width:0}.header-note{min-width:0;flex:0 1 auto}.heade
 .notify-setting{border-top:1px solid var(--line);margin-top:18px;padding-top:18px}.notify-setting h3{font-size:17px}.notify-setting .small{margin:0 0 6px}.auth-switch{margin:8px 0 0;font-size:14px;color:var(--muted)}.auth-switch .text-button{font-weight:700;padding:6px 4px}
 .symptom-choice .checkbox{align-items:center}.symptom-choice input{margin:0}
 .photo-buttons{display:flex;flex-wrap:wrap;gap:0 18px}.photo-buttons label{flex:1 1 220px;min-width:0}.photo-buttons .camera{display:none}@media(pointer:coarse){.photo-buttons .camera{display:block}}.found dd small{font-weight:400}
+.official-check{margin-top:20px}td.mismatch{color:var(--muted)}
