@@ -47,11 +47,11 @@ class SafetyKoreaTests(unittest.TestCase):
         request = self.requests[0]
         self.assertEqual((request.url.scheme, request.url.path, request.headers['AuthKey']), ('https', '/openapi/api/recall/recallList.json', KEY))
         self.assertEqual((request.url.params['conditionKey'], request.url.params['conditionValue']), ('recallProductName', '보조배터리'))
-        self.assertEqual((result['status'], [n['id'] for n in result['notices']]), ('needs_information', ['kr-9001']))
+        self.assertEqual((result['status'], [n['id'] for n in result['notices']]), ('matched', ['kr-9001']))
         notice = result['notices'][0]
         self.assertEqual((notice['published_at'], notice['source_url']), ('2026-09-01', 'https://www.safetykorea.kr/recall/recallBoard'))
         self.assertIn('080-000-0000', notice['action'])
-        self.assertEqual({c['field']: c['state'] for c in notice['checks']}, {'brand': 'match', 'model': 'match', 'sale_region': 'unknown', 'notice_review': 'unknown'})
+        self.assertEqual({c['field']: c['state'] for c in notice['checks']}, {'brand': 'match', 'model': 'match', 'extra': 'match'})
         source = self.domestic(service)
         self.assertEqual((source['state'], source['notices_count'], source['last_success_at']), ('available', 1, NOW.isoformat()))
         service.evaluate(ProductInput(brand='테스트전자', model='TB-10000', **PRODUCT))
@@ -62,7 +62,7 @@ class SafetyKoreaTests(unittest.TestCase):
         service = self.service({'resultCode': '2000', 'resultData': [RECORD]})
         self.assertEqual(service.evaluate(ProductInput(brand='테스트전자', model='TB-10000X', **PRODUCT))['notices'], [])
         other = service.evaluate(ProductInput(brand='Other', model='TB-20000', **PRODUCT))
-        self.assertEqual({c['field']: c['state'] for c in other['notices'][0]['checks']}['brand'], 'unknown')
+        self.assertEqual({c['field']: c['state'] for c in other['notices'][0]['checks']}['brand'], 'skipped')
         nothing = service.evaluate(ProductInput(brand='Other', model='ZZ-1', **PRODUCT))
         self.assertEqual(nothing['status'], 'incomplete')
         self.assertIn('국내(Safety Korea) 보조배터리 리콜 공지를 확인했습니다', nothing['limitations'])

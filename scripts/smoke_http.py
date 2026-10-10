@@ -69,7 +69,10 @@ try:
     assert real['synthetic'] is False and real['coverage_complete'] is False
     assert real['notices'][0]['outcome'] == 'pending_review'
     assert real['notices'][0]['source_url'].startswith('https://www.cpsc.gov/Recalls/')
-    assert any(question['field'] == 'serial_number' for question in real['questions'])
+    assert real['required_fields'] == ['sale_region', 'official_check']
+    direct = anonymous.request('checks', 'POST', dict(brand='INIU', model='BI-B41', model_confirmed=True))
+    assert direct['required_fields'] == ['serial_number']
+    assert anonymous.request('checks', 'POST', dict(brand='INIU', model='BI-B41', model_confirmed=True, serial_number='000G21'))['status'] == 'matched'
     exported = first.request('auth/export')
     assert exported['account']['username'] == identities[0][1]
     assert len(exported['products']) == 1 and len(exported['history'][product_id]['checks']) == 2

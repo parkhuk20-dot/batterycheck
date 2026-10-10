@@ -68,9 +68,27 @@ class OfficialTests(unittest.TestCase):
         serial = next(c for c in notice['checks'] if c['field'] == 'serial_number')
         self.assertEqual(serial['state'], 'unknown')
         self.assertIsNone(serial['input'])
-        self.assertEqual(serial['expected'], ['000G21', '000H21', '000I21', '000L21'])
+        self.assertEqual(serial['expected'], ['000G21, 000H21, 000I21, 000L21'])
+        self.assertEqual(result['required_fields'], ['serial_number'])
         self.assertEqual(result['status'], 'needs_information')
         self.assertEqual(notice['outcome'], 'pending_review')
+        entered = lambda serial: self.service().evaluate(product(brand='INIU', model='BI-B41', serial_number=serial))['status']
+        self.assertEqual((entered('000g21'), entered('SN: 000L21'), entered('000Z99')), ('matched', 'matched', 'no_match'))
+
+    def test_conditions_are_read_from_the_notice_text_and_scoped_to_their_model(self):
+        from batterycheck.official import _extract_conditions
+        read = lambda text, models: [(c['field'], c['rule'], c['models'], c['values']) for c in _extract_conditions(text, models)]
+        self.assertEqual(read('This recall involves pods with model number E33A. The model number E33A is printed on the back.', ['E33A']), [])
+        self.assertEqual(read('Chargers with model number BS-30KP365 and a serial number ending in the number 0 through 9 or the letter "D." The label shows the serial number, beginning "SN."', ['BS-30KP365']),
+                         [('serial_number', 'suffix', [], [*'0123456789', 'D'])])
+        self.assertEqual(read('Model number "MMA008" is printed on the stand. Serial numbers (14 digits) starting with "57X" are included. '
+                              'Model number "PB0003" is printed on the back. All serial numbers are included in this recall.', ['MMA008', 'PB0003']),
+                         [('serial_number', 'prefix', ['MMA008'], ['57X'])])
+        self.assertEqual(read('Model E2037 has one of the following date codes (YYWW): 2318, 2319. Model E2038 has one of the following date codes (YYWW): 2313.', ['E2037', 'E2038']),
+                         [('date_code', 'one_of', ['E2037'], ['2318', '2319']), ('date_code', 'one_of', ['E2038'], ['2313'])])
+        self.assertEqual([c[:2] for c in read('Only model A1 power banks sold in the U.S. with qualifying serial numbers are included. '
+                                              'Consumers should check their serial number at https://example.com/recall to see.', ['A1'])],
+                         [('sale_region', 'region'), ('serial_number', 'external')])
 
     def test_unconfirmed_and_unsupported_identification_is_not_searched(self):
         for changes in ({'model': ''}, {'model_confirmed': False}, {'product_kind': 'other'}):
@@ -88,11 +106,12 @@ class OfficialTests(unittest.TestCase):
         self.assertIn('구매 국가가 공지 대상과 다릅니다', action)
         status, checks, action = run(sale_region='US')
         self.assertEqual((status, checks['sale_region']), ('needs_information', 'match'))
-        self.assertIn('일련번호까지 확인', action)
+        self.assertIn('제조사 조회 결과', action)
         status, checks, action = run(sale_region='US', official_check='affected')
-        self.assertEqual((status, checks['serial_number'], checks['notice_review']), ('matched', 'match', 'match'))
+        self.assertEqual((status, checks['serial_number']), ('matched', 'match'))
+        self.assertNotIn('notice_review', checks)
         self.assertIn('사용과 충전을 중지', action)
-        self.assertIn('직접 확인했다고 답하신', action)
+        self.assertIn('공식 리콜 조건과 모두 일치', action)
         status, checks, action = run(sale_region='US', official_check='not_affected')
         self.assertEqual((status, checks['serial_number']), ('no_match', 'mismatch'))
 
@@ -110,7 +129,7 @@ class OfficialTests(unittest.TestCase):
     def test_a_missing_brand_does_not_block_the_model_lookup(self):
         result = self.service().evaluate(product(brand=''))
         self.assertEqual(result['status'], 'needs_information')
-        self.assertEqual({c['field']: c['state'] for c in result['notices'][0]['checks']}['brand'], 'unknown')
+        self.assertEqual({c['field']: c['state'] for c in result['notices'][0]['checks']}['brand'], 'skipped')
         self.assertEqual(self.service().brands_for_model('a1263'), ['Anker'])
         self.assertEqual(self.service().brands_for_model('A1263X'), [])
 
@@ -131,9 +150,10 @@ class OfficialTests(unittest.TestCase):
         self.assertEqual(len(revision), 1)
         self.assertEqual(json.loads(revision[0].read_text())['records'], [FIXTURE])
         candidate = service.evaluate(product(brand='Fixture Brand', model='FX-001'))
-        self.assertEqual(candidate['status'], 'needs_information')
+        # The fixture notice states no serial, date or country condition, so the model alone decides.
+        self.assertEqual((candidate['status'], candidate['required_fields']), ('matched', []))
         self.assertEqual(candidate['notices'][0]['evidence_kind'], 'official_api')
-        self.assertEqual(candidate['notices'][0]['outcome'], 'pending_review')
+        self.assertEqual(candidate['notices'][0]['outcome'], 'match')
 
     def test_api_token_boundaries_preserve_model_suffixes(self):
         service = self.service()

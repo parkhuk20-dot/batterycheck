@@ -129,6 +129,123 @@ def _read(path, default):
         return default
 
 
+FIELD_NAMES = {"serial_number": "시리얼번호(S/N)", "date_code": "제조 날짜 코드", "sale_region": "구매 국가", "official_check": "제조사 조회 결과"}
+FIELD_HINTS = {"serial_number": "제품 뒷면이나 바닥 라벨의 S/N 뒤에 적힌 글자를 그대로 입력해주세요.",
+               "date_code": "제품 라벨에 적힌 제조 날짜 코드를 그대로 입력해주세요.",
+               "sale_region": "제품을 구매한 국가를 골라주세요. 해외 직구는 판매처 기준입니다."}
+REMEDIES = {"Refund": "환불", "Replace": "교환", "Repair": "수리", "Dispose": "폐기"}
+_SENTENCES = re.compile(r'(?<=\.)\s+(?=[A-Z"“])|(?<=\.["”])\s+(?=[A-Z])')
+_CODE = r"[A-Z0-9][A-Z0-9-]{3,}"
+
+
+def _values(fragment):
+    """Identifier values in a notice phrase: quoted strings, a digit range ("0 through 9") and bare capital codes."""
+    found = []
+    for low, high in re.findall(r"\b(\d) through (\d)\b", fragment):
+        found.extend(str(n) for n in range(int(low), int(high) + 1))
+    fragment = re.sub(r"\b\d through \d\b", " ", fragment)
+    found.extend(re.findall(r"(?<![\w-])[A-Z0-9][A-Z0-9/-]*(?![\w-])", fragment))
+    return list(dict.fromkeys(found))
+
+
+def _shown(values):
+    if {str(n) for n in range(10)} <= set(values):
+        values = ["0~9"] + [v for v in values if not (len(v) == 1 and v.isdigit())]
+    return ", ".join(values[:8]) + (f" 외 {len(values) - 8}개" if len(values) > 8 else "")
+
+
+def _condition(field, rule, values=(), models=(), text="", url=None):
+    name = FIELD_NAMES[field]
+    expected, basis = {
+        "suffix": (f"끝자리 {_shown(values)}", f"이 제품은 {name} 끝자리에 따라 리콜 대상 여부가 달라집니다."),
+        "prefix": (f"앞자리 {_shown(values)}", f"이 제품은 {name} 앞자리에 따라 리콜 대상 여부가 달라집니다."),
+        "one_of": (_shown(values), f"이 제품은 공지에 적힌 {name}일 때만 리콜 대상입니다."),
+        "region": ("미국 판매 제품", "이 리콜은 미국에서 판매된 제품만 대상입니다."),
+        "external": ("제조사 페이지에서 조회", f"이 리콜은 제조사 페이지에서 {name}를 조회해야 대상 여부를 알 수 있습니다."),
+        "manual": ("공지에 적힌 조건", f"이 리콜은 {name}에 따라 대상 여부가 달라집니다. 공지 원문: {text}"),
+    }[rule]
+    return {"field": field, "rule": rule, "values": list(values), "models": list(models), "expected": [expected], "text": basis} | ({"url": url} if url else {})
+
+
+def _extract_conditions(text, models):
+    """Read the identifying conditions out of a notice description with fixed rules; no model decides anything here.
+
+    A condition applies to the models named in its sentence, or else to the models named most recently before it.
+    """
+    found, current = [], []
+    def add(condition):
+        same = [c for c in found if c["field"] == condition["field"] and c["models"] == condition["models"]]
+        weak = {"manual", "external"}
+        if not same:
+            found.append(condition)
+        elif same[0]["rule"] in weak and (condition["rule"] not in weak or (condition.get("url") and not same[0].get("url"))):
+            found[found.index(same[0])] = condition
+    for sentence in _SENTENCES.split(text):
+        named = [m for m in models if _token(m, sentence)]
+        current = named or current
+        scope = current if len(models) > 1 else []
+        if re.search(r"(?i)only [^.]*sold in the U\.S", sentence):
+            add(_condition("sale_region", "region"))
+        if not re.search(r"(?i)serial|date code|manufactur(?:ing|e) date", sentence) or re.search(r"(?i)all serial numbers are included", sentence):
+            continue
+        if match := re.search(r"(?i:serial numbers?[^.]*?\bend(?:ing|s)? (?:in|with))(.+)", sentence):
+            add(_condition("serial_number", "suffix", _values(match[1].split(" The ")[0]), scope))
+        elif match := re.search(r"(?i:serial numbers?[^.]*?\b(?:start|begin)(?:ning|ing|s)? with)[^\"“]*[\"“]([A-Z0-9]+)", sentence):
+            add(_condition("serial_number", "prefix", [match[1]], scope))
+        elif match := re.search(r"(?i:serial numbers?)[: ]+((?:%s(?:, ?| / | and | or | )?){2,})" % _CODE, sentence):
+            # A table row names its own models: "MXB008 GK2309880, GK2309899 DBL6000M / DBL6000P GK2309901".
+            rows, target = [], scope
+            tokens = re.findall(_CODE, match[1])
+            shape = lambda token: re.sub(r"[A-Z]", "A", re.sub(r"\d", "9", token))
+            usual = max(map(shape, tokens), key=[shape(x) for x in tokens].count)
+            for token in tokens:
+                # Serial numbers in one table share a shape; a differently shaped code heads a row as its model.
+                if any(_loose(token) == _loose(m) for m in models) or shape(token) != usual:
+                    if rows and rows[-1][1]:
+                        rows.append(([token], []))
+                    elif rows:
+                        rows[-1][0].append(token)
+                    else:
+                        rows.append(([token], []))
+                else:
+                    if not rows:
+                        rows.append((list(target), []))
+                    rows[-1][1].append(token)
+            for row_models, values in rows:
+                if values:
+                    add(_condition("serial_number", "one_of", values, row_models))
+        elif re.search(r"(?i)qualifying serial numbers?|check (?:their|the|your) serial numbers? at|do not contain a serial number|only [^.]*serial numbers?", sentence):
+            url = re.search(r"https?://[^\s,)]+", sentence)
+            rule = "external" if re.search(r"(?i)qualifying|check (?:their|the|your) serial", sentence) else "manual"
+            add(_condition("serial_number", rule, models=scope, text=sentence.strip(), url=url[0].rstrip(".") if url else None))
+        if match := re.search(r"(?i:date codes? \([A-Z/]+\): |manufactur(?:ing|e) dates? of )((?:\d[\d/]{3,}(?:, ?| or | and )*)+)", sentence):
+            add(_condition("date_code", "one_of", re.findall(r"\d[\d/]{3,}", match[1]), scope))
+        elif re.search(r"(?i)date codes? (?:included|are)\b", sentence):
+            add(_condition("date_code", "manual", models=scope, text=sentence.strip()))
+    return found
+
+
+def _compare(condition, product, region):
+    """One official condition against what the user entered: match, mismatch, or unknown when nothing was entered."""
+    rule, values = condition.get("rule") or ("region" if condition["field"] == "sale_region" else "external"), condition.get("values", [])
+    if rule == "region":
+        return region, REGION_NAMES.get(product.sale_region, "그 밖의 지역" if product.sale_region else None)
+    if rule in {"external", "manual"}:
+        state = {"affected": "match", "not_affected": "mismatch"}.get(product.official_check, "unknown")
+        return state, {"match": "대상이라고 확인함", "mismatch": "대상이 아니라고 확인함"}.get(state)
+    entered = getattr(product, condition["field"], None)
+    if not entered:
+        return "unknown", None
+    if condition["field"] == "date_code":
+        digits = re.sub(r"\D", "", entered)
+        return ("match" if any(digits == re.sub(r"\D", "", v) for v in values) else "mismatch"), entered
+    serial = _loose(entered)
+    # A label prints "SN: FSD230203D"; the marker is not part of the number.
+    forms = {serial, re.sub(r"^S/?N[:.]?", "", serial)}
+    test = {"suffix": str.endswith, "prefix": str.startswith, "one_of": lambda s, v: v in s}[rule]
+    return ("match" if any(test(s, _loose(v)) for s in forms for v in values) else "mismatch"), entered
+
+
 def _api_notice(record, fetched_at):
     if not isinstance(record, dict):
         raise ValueError("invalid_record")
@@ -167,16 +284,19 @@ def _api_notice(record, fetched_at):
         if 0 < len(lead) <= 3:
             # "Anker PowerCore" is brand + product line when the maker is "Anker Innovations Limited".
             brands.append(lead[0] if len(lead) > 1 and any(_norm(lead[0]) == _norm(name.split()[0].strip(",.")) for name in makers) else " ".join(lead))
-    models = re.findall(r"(?i:model(?:s| numbers?| nos?\.?)?)[:\s]+([A-Z0-9][A-Z0-9-]{2,})(?![a-z])", "\n".join(search))
+    # "model numbers A1642, A1647 and A1652" names three models; a capitalised word ("They") ends the list.
+    lists = re.findall(r"(?i:models?(?: numbers?| nos?\.?)?)[:\s]+[\"“]?((?:[A-Z0-9][A-Z0-9-]{2,}(?![a-z])[\"”]?(?:, | and | or | / )?)+)", "\n".join(search))
+    models = list(dict.fromkeys(m for found in lists for m in re.findall(r"[A-Z0-9][A-Z0-9-]{2,}", found) if any(c.isdigit() for c in m)))
+    remedy = "·".join(dict.fromkeys(REMEDIES[o["Option"]] for o in record.get("RemedyOptions") or [] if isinstance(o, dict) and o.get("Option") in REMEDIES))
     return {
-        "brands": list(dict.fromkeys(brands)), "models": list(dict.fromkeys(m for m in models if any(c.isdigit() for c in m))),
+        "brands": list(dict.fromkeys(brands)), "models": models,
         "id": "cpsc-" + str(identity), "title": record["Title"], "source_url": record["URL"],
         "source_id": "cpsc", "published_at": published,
         "last_publish_at": record.get("LastPublishDate"), "fetched_at": fetched_at,
         "content_hash": _digest(record), "evidence_kind": "official_api",
         "review_status": "pending", "search_text": "\n".join(search),
-        "action": "공식 공지에서 구매 국가, 일련번호, 조치 방법을 확인해주세요. 자동으로 찾은 결과만으로 리콜 대상이라고 단정할 수 없습니다.",
-        "conditions": [], "raw": record,
+        "action": (f"공식 공지의 조치: {remedy}. " if remedy else "") + "신청 방법과 연락처는 공식 리콜 공지에 있습니다.",
+        "conditions": _extract_conditions(record.get("Description") or "", models), "raw": record,
     }
 
 
@@ -483,7 +603,7 @@ class OfficialService:
         _, _, _, notices = self._load()
         result = {"checked_at": now.isoformat(), "synthetic": False,
                   "catalog_version": "cpsc-candidates-v1", "catalog_hash": status["catalog_hash"],
-                  "status": "incomplete", "label": LABELS["incomplete"], "notices": [], "questions": [],
+                  "status": "incomplete", "label": LABELS["incomplete"], "notices": [], "questions": [], "fields": [], "required_fields": [],
                   "sources": status["sources"], "risk": risk_guidance(product.signs, product.signs_answered),
                   "limitations": "지금은 미국(CPSC) 공식 리콜 공지 일부만 확인할 수 있습니다. 국내(Safety Korea) 정보는 아직 연결되지 않았습니다. 리콜 공지를 찾지 못했다고 해서 제품이 반드시 안전한 것은 아닙니다.",
                   "next_action": "확인할 수 있는 공지에서는 이 제품을 찾지 못했습니다. 리콜이 없다는 뜻은 아니니 Safety Korea와 제조사 사이트에서도 확인해주세요.",
@@ -503,61 +623,73 @@ class OfficialService:
                 # Domestic notices often write the brand in Korean or name the importer, so only the model must match exactly.
                 candidate = _has_model(product.model, notice)
                 known = [_norm(b) for b in notice["brands"]]
-                brand_state = "match" if product.brand and any(_norm(product.brand) in b or b in _norm(product.brand) for b in known) else "unknown"
+                brand_state = "match" if product.brand and any(_norm(product.brand) in b or b in _norm(product.brand) for b in known) else "skipped"
             elif notice["evidence_kind"] == "official_web_curated":
                 candidate = _has_model(product.model, notice) and (
                     not product.brand or _norm(product.brand) in {_norm(b) for b in notice["brands"]})
-                brand_state = "match" if product.brand else "unknown"
+                brand_state = "match" if product.brand else "skipped"
             else:
                 candidate = _has_model(product.model, notice) and (not product.brand or _token(product.brand, notice["search_text"]))
-                brand_state = "match" if product.brand else "unknown"
+                brand_state = "match" if product.brand else "skipped"
             if not candidate:
                 continue
             home, region = _region_state(product.sale_region, notice)
-            # What the user found on the official notice or the maker's serial page; the service never sees the serial itself.
-            reviewed = {"affected": "match", "not_affected": "mismatch"}.get(product.official_check, "unknown")
-            checks = [{"field": "brand", "state": brand_state, "input": product.brand or None, "expected": notice.get("brands") or [product.brand or "공지 확인"], "basis": "공식 공지 내 식별자 후보 · 자격 확인 아님"},
-                      {"field": "model", "state": "match", "input": product.model, "expected": [product.model], "basis": "접미사·하이픈을 보존한 모델 식별자 대조"}]
-            conditions = list(notice.get("conditions", []))
-            if not any(c["field"] == "sale_region" for c in conditions):
-                conditions.insert(0, {"field": "sale_region", "expected": [f"{REGION_NAMES[home]} 판매 제품"],
-                                      "text": f"이 공지는 {REGION_NAMES[home]}에서 판매된 제품이 대상입니다. 제품을 구매한 국가를 확인해주세요."})
+            listed = next((m for m in notice.get("models", []) if _loose(m) == _loose(product.model)), None)
+            # Conditions the notice ties to another model of the same recall do not apply to this product.
+            conditions = [c for c in notice.get("conditions", []) if not c.get("models") or any(_loose(m) == _loose(product.model) for m in c["models"])]
+            checks = [{"field": "brand", "state": brand_state, "input": product.brand or None, "expected": [product.brand] if brand_state == "match" and not any(_norm(product.brand) == _norm(b) for b in notice.get("brands", [])) else notice.get("brands") or ["공지에 브랜드 표기 없음"],
+                       "basis": "공식 공지에 적힌 브랜드"},
+                      {"field": "model", "state": "match", "input": product.model, "expected": [listed or product.model], "basis": "접미사·하이픈을 보존한 모델 식별자 대조"}]
+            required = []
             for condition in conditions:
-                if condition["field"] == "sale_region":
-                    state, shown = region, REGION_NAMES.get(product.sale_region, "그 밖의 지역" if product.sale_region else None)
-                else:
-                    state, shown = reviewed, {"match": "대상이라고 확인함", "mismatch": "대상이 아니라고 확인함"}.get(reviewed)
+                state, shown = _compare(condition, product, region)
                 checks.append({"field": condition["field"], "state": state, "input": shown, "expected": condition["expected"], "basis": condition["text"]})
+                # A condition only the maker's page can answer is asked as a yes/no result; the others as the value itself.
+                ask = "official_check" if (condition.get("rule") or "external") in {"external", "manual"} and condition["field"] != "sale_region" else condition["field"]
+                question = {"notice_id": notice["id"], "field": ask, "text": condition["text"],
+                            "label": FIELD_NAMES[condition["field"]], "hint": FIELD_HINTS.get(condition["field"]),
+                            "url": condition.get("url") or (notice.get("manufacturer_url") if ask == "official_check" else None)}
+                result["fields"].append(question)
                 if state == "unknown":
-                    result["questions"].append({"notice_id": notice["id"], "field": condition["field"], "text": condition["text"]})
-            checks.append({"field": "notice_review", "state": reviewed, "input": {"match": "대상이라고 확인함", "mismatch": "대상이 아니라고 확인함"}.get(reviewed),
-                           "expected": ["공식 공지와 제조사 안내 확인"], "basis": "사용자가 공식 공지에서 직접 확인한 결과"})
-            if reviewed == "unknown":
-                result["questions"].append({"notice_id": notice["id"], "field": "notice_review",
-                                            "text": "모델명이 같아도 모두 리콜 대상은 아닙니다. 공식 공지와 제조사 페이지에서 내 제품이 해당하는지 확인해주세요."})
+                    required.append(ask)
+                    result["questions"].append(question)
+            if product.sale_region and not any(c["field"] == "sale_region" for c in conditions):
+                checks.append({"field": "sale_region", "state": region, "input": REGION_NAMES.get(product.sale_region, "그 밖의 지역"),
+                               "expected": [f"{REGION_NAMES[home]} 판매 제품"], "basis": f"이 공지는 {REGION_NAMES[home]}에서 판매된 제품 기준입니다."})
+            if not conditions:
+                checks.append({"field": "extra", "state": "match", "input": "없음", "expected": ["없음"], "basis": "이 공지는 모델명만으로 대상 제품을 정합니다."})
+            states = {c["state"] for c in checks[2:] if c["field"] != "sale_region" or any(k["field"] == "sale_region" for k in conditions)}
+            outcome = "mismatch" if "mismatch" in states else "pending_review" if "unknown" in states else "match"
+            # Bought in another country: the same model, but this notice's remedy may not apply there. Any other mismatch rules the notice out.
+            others = {c["state"] for c in checks[2:] if c["field"] != "sale_region"}
+            if region == "mismatch" and "mismatch" not in others:
+                outcome = "other_market"
             item = {key: value for key, value in notice.items() if key not in {"raw", "search_text", "brands", "models", "excerpts"}}
-            item.update(checks=checks, outcome={"match": "match", "mismatch": "mismatch"}.get(reviewed, "pending_review"), region=region,
-                        review_status="pending", stale=not _fresh(notice["fetched_at"], now))
+            item.update(checks=checks, outcome=outcome, region=region, required_fields=list(dict.fromkeys(required)), conditions=conditions,
+                        market=REGION_NAMES[home], review_status="pending", stale=not _fresh(notice["fetched_at"], now))
             result["notices"].append(item)
         outcomes = {n["outcome"] for n in result["notices"]}
+        result["required_fields"] = list(dict.fromkeys(f for n in result["notices"] for f in n["required_fields"]))
         if result["notices"]:
-            if "match" in outcomes:
+            hit = next((n for n in result["notices"] if n["outcome"] == "match"), None)
+            if all(n["stale"] for n in result["notices"]):
+                result["next_action"] = "저장된 리콜 정보가 만료됐습니다. 잠시 후 최신 정보로 다시 확인해주세요."
+            elif hit:
+                basis = "입력한 정보가 공식 리콜 조건과 모두 일치합니다." if hit["conditions"] else "공식 리콜 정보를 확인했어요. 이 제품은 모델명만으로 리콜 대상 여부를 확인할 수 있습니다."
+                market = "" if hit["region"] == "match" else f" 이 공지는 {hit['market']}에서 판매된 제품 기준이라, 다른 나라에서 샀다면 교환·환불 절차는 제조사에 문의해주세요."
                 result.update(status="matched", label=LABELS["matched"],
-                              next_action="사용과 충전을 중지하고 아래 공식 공지의 조치 방법(환불·교환 등)을 따라주세요. 공식 공지에서 대상이라고 직접 확인했다고 답하신 내용을 기준으로 한 결과입니다.")
-            elif outcomes == {"mismatch"}:
-                result.update(status="no_match", label=LABELS["no_match"],
-                              next_action="모델명이 같은 공지가 있지만 공식 공지에서 대상이 아니라고 확인하셨습니다. 새 리콜이 등록될 수 있으니 제품을 저장해 두고 다시 확인해주세요.")
-            elif all(n["stale"] for n in result["notices"]):
-                result["next_action"] = "저장된 리콜 정보가 만료됐습니다. 아래 공식 공지를 직접 확인하고 최신 정보를 다시 확인해주세요."
+                              next_action=basis + " 사용과 충전을 중지하고 아래 조치 방법을 따라주세요." + market)
+            elif "other_market" in outcomes and "pending_review" not in outcomes:
+                result.update(status="needs_information", label="구매 국가가 공지 대상과 다릅니다",
+                              next_action="모델명은 리콜 제품과 일치하지만 구매 국가가 공지 대상과 다릅니다. 같은 모델이므로 사용을 멈추고 제조사에 국내 조치가 있는지 문의해주세요.")
+            elif "pending_review" in outcomes:
+                names = [FIELD_NAMES[f] for f in result["required_fields"]]
+                asked = "아래 항목을 알려주세요: " + ", ".join(names) + "."
+                result.update(status="needs_information", label=("·".join(n.split("(")[0] for n in names) + " 확인이 필요합니다"),
+                              next_action="모델명은 리콜 제품과 일치합니다. 정확한 확인을 위해 " + asked)
             else:
-                regions = {n["region"] for n in result["notices"]}
-                if regions == {"mismatch"}:
-                    action = "모델명이 같은 리콜 공지가 있지만 구매 국가가 공지 대상과 다릅니다. 이 공지의 회수·교환 대상이 아닐 수 있습니다. 같은 모델이므로 제조사와 Safety Korea에서 국내 조치가 있는지 확인해주세요."
-                elif "match" in regions:
-                    action = "모델명과 구매 국가가 리콜 공지와 같습니다. 아래 공식 공지나 제조사 페이지에서 일련번호까지 확인한 뒤, 확인한 결과를 선택해주세요."
-                else:
-                    action = "모델명이 같은 공식 리콜 공지가 있습니다. 구매 국가와 일련번호까지 맞아야 리콜 대상입니다. 구매 국가를 입력하고 아래 공식 공지에서 확인해주세요."
-                result.update(status="needs_information", label=LABELS["needs_information"], next_action=action)
+                result.update(status="no_match", label=LABELS["no_match"],
+                              next_action="모델명은 같지만 입력한 정보가 공식 리콜 조건과 다릅니다. 이 공지의 대상이 아닙니다. 새 리콜이 등록될 수 있으니 제품을 저장해 두고 다시 확인해주세요.")
         elif status["sources"][0]["count"]:
             # The official list was read and holds nothing for this model: a real "none found", with its scope stated.
             covered = "미국(CPSC)과 국내(Safety Korea)" if domestic["state"] == "available" else "미국(CPSC)"

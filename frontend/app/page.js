@@ -4,15 +4,15 @@ import { useEffect, useRef, useState } from 'react';
 import safety from '../../shared/safety.json';
 
 const empty = { brand: '', model: '', model_confirmed: false, product_kind: 'power_bank', demo: false,
-  manufactured_on: '', sale_region: '', lot: '', signs: [], signs_answered: false, scenario: 'complete', official_check: 'unknown' };
+  manufactured_on: '', sale_region: '', lot: '', serial_number: '', date_code: '', signs: [], signs_answered: false, scenario: 'complete', official_check: 'unknown' };
 const signLabels = { smoke: '연기', flame: '불꽃', swelling: '배터리가 부풀어 오름', damage: '제품이 깨지거나 손상됨', discoloration: '색이 변함', heat: '평소보다 심하게 뜨거움', odor: '이상한 냄새가 남', sound: '이상한 소리가 남' };
-const fields = { model: '모델명', brand: '브랜드', manufactured_on: '제조일', sale_region: '구매 국가/지역', lot: 'LOT / 제조번호', serial: '일련번호', serial_number: '일련번호', notice_review: '공지 내용 확인' };
-const conditionLabels = { match: '일치', mismatch: '다름', unknown: '확인 필요' };
+const fields = { model: '모델명', brand: '브랜드', manufactured_on: '제조일', sale_region: '구매 국가/지역', lot: 'LOT / 제조번호', serial: '일련번호', serial_number: '시리얼번호', date_code: '제조 날짜 코드', extra: '추가 식별 조건' };
+const conditionLabels = { match: '일치', mismatch: '다름', unknown: '확인 필요', skipped: '비교 안 함' };
 const sourceLabels = { available: '최신 정보 확인 완료', complete: '확인 완료', curated: '공식 공지 확인 완료', not_synced: '아직 업데이트 전', failed: '불러오지 못함', stale: '오래된 정보', unconfigured: '아직 연결되지 않음' };
 const actionLabels = { unconfirmed: '아직 확인하지 않음', checking: '확인 중', user_completed: '조치를 마쳤다고 기록' };
 const symptomOf = input => input.signs?.length ? 'yes' : input.signs_answered ? 'none' : 'unknown';
 const instant = value => value ? new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) + ' KST' : '기록 없음';
-const bodyFor = form => ({ ...form, manufactured_on: form.manufactured_on || null, sale_region: form.sale_region || null, lot: form.lot || null });
+const bodyFor = form => ({ ...form, manufactured_on: form.manufactured_on || null, sale_region: form.sale_region || null, lot: form.lot || null, serial_number: form.serial_number || null, date_code: form.date_code || null });
 const unsupportedPhoto = '이 사진 형식은 아직 지원하지 않아요. JPG, PNG 또는 WEBP 사진을 사용해주세요.';
 // Phone photos are large and may be rotated; send an upright JPEG no wider than the label needs.
 async function prepareImage(file) {
@@ -49,15 +49,16 @@ function Risk({ risk }) {
     <Sources sources={risk.sources} />
   </section>;
 }
-function Result({ result, historical = false, onExplain }) {
+function Result({ result, historical = false, onExplain, children }) {
   return <article className="result" aria-label={historical ? '과거 확인 기록' : '확인 결과'}>
     <div className="result-title"><span className={`status ${result.status}`}>{result.label}</span><span className="tag">{result.synthetic ? '가상 공지 기반 시연' : '공식 리콜 정보 기준'}</span></div>
     {historical && <p className="warning">과거 기록입니다. 지금 다시 확인한 결과가 아닙니다.</p>}
     <p>{result.limitations}</p><div className="next-action"><strong>지금 해야 할 일</strong><p>{result.next_action}</p></div>
-    {result.questions?.length > 0 && <div className="questions"><strong>더 확인할 내용</strong><ul>{result.questions.map((q, i) => <li key={q.notice_id + q.field + i}>{q.text}</li>)}</ul></div>}
+    {children}
+    {!children && result.questions?.length > 0 && <div className="questions"><strong>추가로 필요한 정보</strong><ul>{result.questions.map((q, i) => <li key={q.notice_id + q.field + i}>{q.text}</li>)}</ul></div>}
     {result.notices?.map(n => <details key={n.id} open><summary>{n.title}</summary>
-      {safeLink(n.source_url || n.url) && <p><a href={safeLink(n.source_url || n.url)} target="_blank" rel="noreferrer">공식 공지와 조치 방법 보기 ↗</a></p>}
-      {n.checks?.length > 0 && <div className="table-wrap"><table><caption>확인한 정보 · 내가 입력한 내용 기준</caption><thead><tr><th>항목</th><th>내 제품</th><th>리콜 공지</th><th>결과</th></tr></thead><tbody>{n.checks.map((c, i) => <tr key={c.field + i}><th scope="row">{fields[c.field] || c.field}</th><td>{c.input || '모름'}</td><td>{Array.isArray(c.expected) ? c.expected.join(' / ') : c.expected}</td><td className={c.state}>{conditionLabels[c.state] || c.state}</td></tr>)}</tbody></table></div>}
+      {safeLink(n.source_url || n.url) && <p><a href={safeLink(n.source_url || n.url)} target="_blank" rel="noreferrer">공식 리콜 공지 보기 ↗</a></p>}
+      {n.checks?.length > 0 && <div className="table-wrap"><table><caption>확인한 정보</caption><thead><tr><th>항목</th><th>내 제품</th><th>공식 리콜 조건</th><th>결과</th></tr></thead><tbody>{n.checks.map((c, i) => <tr key={c.field + i}><th scope="row">{fields[c.field] || c.field}</th><td>{c.input || '미입력'}</td><td>{Array.isArray(c.expected) ? c.expected.join(' / ') : c.expected}</td><td className={c.state}>{c.field === 'extra' ? '확인 완료' : conditionLabels[c.state] || c.state}</td></tr>)}</tbody></table></div>}
       <p>{n.action}</p>
     </details>)}
     <dl className="evidence"><div><dt>확인한 시각</dt><dd>{instant(result.checked_at)}</dd></div>
@@ -199,7 +200,7 @@ export default function Home() {
       if (field === 'demo') return { ...empty, demo: value, signs: current.signs, signs_answered: current.signs_answered };
       const next = { ...current, [field]: value };
       // Typing the brand and model yourself is the confirmation; values read from a photo go through the photo result buttons.
-      if (['brand', 'model'].includes(field)) { next.model_confirmed = Boolean(next.model.trim()); next.official_check = 'unknown'; }
+      if (['brand', 'model'].includes(field)) { next.model_confirmed = Boolean(next.model.trim()); next.official_check = 'unknown'; next.serial_number = ''; next.date_code = ''; }
       return next;
     });
     setResult(null); setHistory(null); setDirty(true); setMessage('');
@@ -211,7 +212,7 @@ export default function Home() {
   function check(event) { event.preventDefault(); return runCheck(form); }
   async function runCheck(next) { await run(async () => { setResult(null); const found = await guardedApi('checks', 'POST', bodyFor(next)); setResult(found); if (found.status === 'needs_information') setMoreOpen(true); setDirty(false); setServer('서버 연결됨'); }); }
   async function save() { await run(async () => { const saved = await guardedApi(selectedId ? `products/${selectedId}` : 'products', selectedId ? 'PUT' : 'POST', bodyFor(form)); setSelectedId(saved.id); setResult(saved.latest_result); setDirty(false); setProducts(current => [saved, ...current.filter(p => p.id !== saved.id)]); setHistory(null); setMessage('내 제품에 저장했습니다.'); }); }
-  function selectProduct(product) { const input = { ...product.input, official_check: product.input.official_check || 'unknown', manufactured_on: product.input.manufactured_on || '', sale_region: product.input.sale_region || '', lot: product.input.lot || '' }; resetForm(input); setSelectedId(product.id); setOcr(null); setMoreOpen(Boolean(input.manufactured_on || input.sale_region || input.lot)); setMessage('저장된 내용을 불러왔습니다. 최신 정보로 다시 확인해주세요.'); }
+  function selectProduct(product) { const input = { ...product.input, official_check: product.input.official_check || 'unknown', serial_number: product.input.serial_number || '', date_code: product.input.date_code || '', manufactured_on: product.input.manufactured_on || '', sale_region: product.input.sale_region || '', lot: product.input.lot || '' }; resetForm(input); setSelectedId(product.id); setOcr(null); setMoreOpen(Boolean(input.manufactured_on || input.sale_region || input.lot)); setMessage('저장된 내용을 불러왔습니다. 최신 정보로 다시 확인해주세요.'); }
   async function action(product, state) { await run(async () => { const updated = await guardedApi(`products/${product.id}/action`, 'PATCH', { state }); setProducts(current => current.map(p => p.id === product.id ? updated : p)); setHistory(null); setMessage('조치 상태를 기록했습니다. 사용 재개 허가나 회수 인증이 아닙니다.'); }); }
   async function remove(product) { await run(async () => { await guardedApi(`products/${product.id}`, 'DELETE'); setProducts(current => current.filter(p => p.id !== product.id)); setHistory(null); setNotifications(current => current.filter(n => n.product_id !== product.id)); if (selectedId === product.id) { setSelectedId(null); setHistory(null); setResult(null); setDirty(true); } setMessage('제품과 확인 기록을 삭제했습니다.'); }); }
   function sample() { resetForm({ ...empty, brand: 'DEMO LAB', model: 'DEMO PB-100', model_confirmed: true, demo: true, manufactured_on: '2026-02-15', sale_region: 'DEMO-KR', lot: '001A' }); setSelectedId(null); setOcr(null); setMoreOpen(true); setMessage('연습용 가상 예시입니다. 실제 리콜 공지가 아닙니다.'); }
@@ -221,7 +222,8 @@ export default function Home() {
   function retake() { (window.matchMedia('(pointer: coarse)').matches ? cameraInput : photoInput).current?.click(); }
   async function sync() { await run(async () => { const data = await guardedApi('sources/sync', 'POST', {}); setSourceStatus(data.source_status); await loadPrivate(); setMessage(`최신 정보를 다시 확인했습니다. 내 제품 ${data.rechecked ?? 0}개를 다시 확인했고 새 알림은 ${data.notifications_created ?? 0}건입니다.`); }); }
   // The answer changes the outcome, so the lookup runs again at once with it.
-  function answerOfficial(value) { const next = { ...form, official_check: value }; setForm(next); return runCheck(next); }
+  // Answers to what the matched notice asks for; the result stays on screen until they are submitted.
+  function setExtra(field, value) { setForm(current => ({ ...current, [field]: value })); setDirty(true); }
   function explain() { setAskSeed({ text: `${form.brand} ${form.model} 확인 결과가 "${result.label}"인데, 무슨 뜻이고 지금 무엇을 해야 하는지 쉽게 설명해 주세요.` }); document.getElementById('assistant')?.scrollIntoView({ behavior: 'smooth' }); }
   const sourceItems = Array.isArray(sourceStatus?.sources) ? sourceStatus.sources : [];
   const domesticReady = sourceItems.some(s => s.id === 'safety-korea' && s.state !== 'unconfigured');
@@ -249,18 +251,24 @@ export default function Home() {
         {form.demo && <aside className="demo-banner"><strong>연습용 가상 예시</strong><span>실제 리콜 공지가 아닙니다.</span></aside>}
         <form onSubmit={check}><fieldset disabled={busy}><div className="fields"><label>브랜드 <span>모르면 비워두세요</span><input name="brand" value={form.brand} maxLength={80} onChange={e => change('brand', e.target.value)} placeholder="예: Anker" /></label><label>모델명<input name="model" value={form.model} maxLength={80} onChange={e => change('model', e.target.value)} placeholder="라벨에 적힌 그대로 (예: A1263)" /></label></div>
           {demoMode && <label className="checkbox"><input type="checkbox" checked={form.demo} onChange={e => change('demo', e.target.checked)} />가상 DEMO LAB 제품으로 시연합니다.</label>}
-          <details className="more-fields" open={moreOpen} onToggle={e => setMoreOpen(e.currentTarget.open)}><summary>더 정확하게 확인하기 (선택)</summary><p className="small">모르는 항목은 비워두세요.</p>
+          {form.demo && <details className="more-fields" open={moreOpen} onToggle={e => setMoreOpen(e.currentTarget.open)}><summary>더 정확하게 확인하기 (선택)</summary><p className="small">모르는 항목은 비워두세요.</p>
             <div className="fields"><label>제조일 <span>제품에 적힌 날짜</span><input type="date" value={form.manufactured_on} onChange={e => change('manufactured_on', e.target.value)} /></label><label>구매 국가/지역 <span>해외 직구는 판매처 기준</span><select value={form.sale_region} onChange={e => change('sale_region', e.target.value)}><option value="">모름</option><option value="KR">대한민국</option><option value="US">미국</option><option value="OTHER">그 밖의 지역</option>{form.demo && <><option value="DEMO-KR">DEMO-KR (가상)</option><option value="DEMO-US">DEMO-US (가상)</option></>}</select></label></div>
             <label>LOT / 제조번호 <span>제품 뒷면의 LOT, Batch, 제조번호 · 전체 시리얼번호(S/N)는 입력하지 마세요</span><input value={form.lot} maxLength={32} onChange={e => change('lot', e.target.value)} /></label>
-          </details>
+          </details>}
           <fieldset className="signs"><legend>현재 제품에 이상 증상이 있나요?</legend><div className="symptom-choice">{[['none', '없음'], ['yes', '있음'], ['unknown', '잘 모르겠음']].map(([value, label]) => <label className="checkbox" key={value}><input type="radio" name="symptom" checked={symptom === value} onChange={() => chooseSymptom(value)} />{label}</label>)}</div>
             {symptom === 'yes' && <><p className="small">어떤 증상이 있나요?</p><div className="sign-grid">{Object.entries(signLabels).map(([sign, label]) => <label className="checkbox" key={sign}><input type="checkbox" checked={form.signs.includes(sign)} onChange={() => toggleSign(sign)} />{label}</label>)}</div></>}</fieldset>
           {form.demo && <label>데모 출처 상태<select value={form.scenario} onChange={e => change('scenario', e.target.value)}><option value="complete">가상 저장소 확인 완료</option><option value="outage">불러오기 실패 시연</option><option value="stale">오래된 정보 시연</option></select></label>}
           <div className="form-actions"><button type="submit">{busy ? '확인 중…' : '리콜 정보 확인'}</button></div>
         </fieldset></form>
         <details className="emergency-link"><summary>연기, 불꽃, 심한 발열이 있나요? 긴급 안전 안내 보기</summary><p>제품 검색을 계속하지 말고 사용과 충전을 중지하세요. 위험하면 안전한 곳으로 이동한 뒤 119에 신고하세요.</p><a className="phone" href="tel:119">119 전화 연결</a><Sources sources={[safety.sources[0], safety.sources[2]]} /></details>
-        {result ? <><Result result={result} onExplain={meta?.assistant?.available ? explain : undefined} />
-          {result.notices?.length > 0 && !form.demo && <fieldset className="signs official-check" disabled={busy}><legend>공식 공지에서 내 제품이 리콜 대상인지 확인했나요?</legend><p className="small">위의 공식 공지나 제조사 페이지에서 일련번호 등 조건을 직접 확인한 뒤 골라주세요. 일련번호는 이 서비스에 입력하지 않습니다.</p><div className="symptom-choice">{[['unknown', '아직 확인하지 않았어요'], ['affected', '대상이었어요'], ['not_affected', '대상이 아니었어요']].map(([value, label]) => <label className="checkbox" key={value}><input type="radio" name="official-check" checked={(form.official_check || 'unknown') === value} onChange={() => answerOfficial(value)} />{label}</label>)}</div></fieldset>}
+        {result ? <><Result result={result} onExplain={meta?.assistant?.available ? explain : undefined}>
+          {result.fields?.length > 0 && !form.demo ? <form onSubmit={e => { e.preventDefault(); runCheck(form); }}><fieldset className="signs official-check" disabled={busy}><legend>{result.required_fields?.length ? '추가로 필요한 정보' : '입력한 추가 정보'}</legend>
+            {result.questions.filter((q, i, all) => q.field !== 'official_check' && all.findIndex(o => o.field === q.field) === i).map(q => <p className="small" key={q.field}>{q.text}</p>)}
+            {result.fields.filter((q, i, all) => all.findIndex(o => o.field === q.field) === i).map(q => q.field === 'official_check' ? <div key={q.field}><p className="small">{q.text}</p>{safeLink(q.url) && <p><a href={safeLink(q.url)} target="_blank" rel="noreferrer">제조사 조회 페이지 열기 ↗</a></p>}<div className="symptom-choice">{[['unknown', '아직 조회하지 않았어요'], ['affected', '대상이라고 나왔어요'], ['not_affected', '대상이 아니라고 나왔어요']].map(([value, label]) => <label className="checkbox" key={value}><input type="radio" name="official-check" checked={(form.official_check || 'unknown') === value} onChange={() => setExtra('official_check', value)} />{label}</label>)}</div></div>
+              : q.field === 'sale_region' ? <label key={q.field}>구매 국가 <span>{q.hint}</span><select value={form.sale_region} onChange={e => setExtra('sale_region', e.target.value)}><option value="">선택</option><option value="KR">대한민국</option><option value="US">미국</option><option value="OTHER">그 밖의 지역</option></select></label>
+              : <label key={q.field}>{q.label} <span>{q.hint}</span><input name={q.field} value={form[q.field] || ''} maxLength={q.field === 'date_code' ? 16 : 40} autoCapitalize="characters" autoComplete="off" onChange={e => setExtra(q.field, e.target.value)} /></label>)}
+            <div className="form-actions"><button type="submit">{busy ? '확인 중…' : '입력한 정보로 확인'}</button></div></fieldset></form> : null}
+          </Result>
           {result.status !== 'needs_identification' && <div className="save-offer"><strong>이 제품을 저장하시겠어요?</strong><p className="small">저장해 두면 새로운 리콜이 등록됐을 때 다시 확인하기 쉽습니다.{user && !form.brand.trim() && ' 저장하려면 브랜드도 입력해주세요.'}</p>{user ? <button type="button" disabled={busy || !canSave} onClick={save}>{selectedId ? '다시 확인한 결과 저장' : '내 제품에 저장'}</button> : <a className="button-link" href="#account">로그인하고 저장</a>}</div>}</>
           : <div className="empty-result"><strong>모델명만 있어도 확인할 수 있습니다</strong><p>내용을 고치면 다시 확인해야 합니다.</p></div>}
       </section>

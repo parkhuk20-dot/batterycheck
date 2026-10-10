@@ -20,6 +20,9 @@ class ProductInput(StrictModel):
     manufactured_on: date | None = None
     sale_region: str | None = Field(default=None, max_length=32)
     lot: str | None = Field(default=None, max_length=32)
+    # Asked for only when the matched official notice makes the recall depend on them.
+    serial_number: str | None = Field(default=None, max_length=40)
+    date_code: str | None = Field(default=None, max_length=16)
     signs: list[Sign] = Field(default_factory=list, max_length=8)
     signs_answered: StrictBool = False
     scenario: Literal["complete", "outage", "stale"] = "complete"

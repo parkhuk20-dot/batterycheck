@@ -196,14 +196,14 @@ try {
     assert.deepEqual([sent.brand, sent.model, sent.model_confirmed, sent.scenario, sent.demo, sent.lot, sent.signs], ['Anker', 'A1263', true, 'complete', false, null, []]);
     assert.equal(await page.getByLabel('가상 DEMO LAB 제품으로 시연합니다.', { exact: true }).isChecked(), false);
     assert.equal(await page.getByLabel('데모 출처 상태', { exact: false }).count(), 0);
-    assert.equal(await page.getByLabel(/^제조일 /).inputValue(), '');
-    assert.equal(await page.getByLabel(/^구매 국가/).inputValue(), '');
-    assert.equal(await page.getByLabel(/^LOT /).inputValue(), '');
+    // A real product starts with brand and model only; the notice decides what else is asked.
+    assert.equal(await page.getByLabel(/^제조일 /).count(), 0);
+    assert.equal(await page.getByLabel(/^LOT /).count(), 0);
     assert.equal(await page.getByLabel('연기', { exact: true }).count(), 0);
     assert.equal(await page.locator('.history').count(), 0);
     assert.equal(await page.getByRole('button', { name: '다시 확인한 결과 저장', exact: true }).count(), 0);
     cases.push('ocr_clears_previous_conditions_demo_outage_and_history');
-    await waitText(result, '제품 정보를 조금 더 확인해주세요');
+    await waitText(result, '구매 국가·제조사 조회 결과 확인이 필요합니다');
     ocrEvidence = { status: 'passed', engine: payload.engine, fixture: 'generated black text on white PNG; no personal photo', brand: 'ANKER', model: 'A1263', photo_retained: false, requires_confirmation: true };
     cases.push('real_local_ocr_synthetic_label', 'photo_reading_requires_user_confirmation');
   } else {
@@ -214,12 +214,19 @@ try {
     await page.getByLabel('모델명', { exact: true }).fill('A1263');
   }
   await page.getByRole('button', { name: '리콜 정보 확인', exact: true }).click();
-  await waitText(result, '제품 정보를 조금 더 확인해주세요');
-  await waitText(result, '일련번호');
+  await waitText(result, '구매 국가·제조사 조회 결과 확인이 필요합니다');
+  await waitText(result, '시리얼번호');
   await waitText(result, '미국');
-  const official = result.getByRole('link', { name: '공식 공지와 조치 방법 보기 ↗', exact: true });
+  const official = result.getByRole('link', { name: '공식 리콜 공지 보기 ↗', exact: true });
   assert.match(await official.getAttribute('href'), /^https:\/\/www\.cpsc\.gov\/Recalls\/2025\//);
-  assert.equal(await result.locator('.status').innerText(), '제품 정보를 조금 더 확인해주세요');
+  assert.equal(await result.locator('.status').innerText(), '구매 국가·제조사 조회 결과 확인이 필요합니다');
+  // Only what this notice needs is asked: the purchase country and the maker's serial lookup, no date or LOT.
+  assert.equal(await result.getByLabel(/^시리얼번호/).count(), 0);
+  await result.getByLabel(/^구매 국가/).selectOption('US');
+  await result.getByLabel('대상이라고 나왔어요', { exact: true }).check();
+  await result.getByRole('button', { name: '입력한 정보로 확인', exact: true }).click();
+  await waitText(result.locator('.status'), '리콜 대상 제품과 일치합니다');
+  cases.push('notice_conditions_drive_the_extra_inputs');
   assert.equal((await (await context.request.get(base + '/api/products')).json()).length, 1, 'actual product is queried but not stored by this test');
   cases.push('official_anker_candidate', 'official_link', 'serial_and_us_scope_pending_review');
 

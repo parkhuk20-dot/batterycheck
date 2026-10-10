@@ -181,7 +181,7 @@ class Store:
                     return None
                 db.execute('UPDATE products SET input_json=? WHERE id=? AND user_id=?', (product_json, product_id, user_id))
                 # A newly changed product or evidence needs a fresh user action acknowledgement.
-                identity_fields = ('brand', 'model', 'manufactured_on', 'sale_region', 'lot', 'demo')
+                identity_fields = ('brand', 'model', 'manufactured_on', 'sale_region', 'lot', 'serial_number', 'date_code', 'demo')
                 identity_changed = any(previous['input'].get(k) != product_values.get(k) for k in identity_fields)
                 if identity_changed or evidence_fingerprint(previous['latest_result']) != evidence_fingerprint(result):
                     db.execute("UPDATE products SET action_state='unconfirmed' WHERE id=?", (product_id,))

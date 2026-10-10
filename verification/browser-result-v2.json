@@ -1,6 +1,6 @@
 {
   "status": "passed",
-  "checked_at": "2026-10-06T11:16:49.552Z",
+  "checked_at": "2026-10-08T02:53:18.113Z",
   "browser": "existing Chromium headless",
   "desktop_focus_changed": false,
   "browser_network_scope": "127.0.0.1:3114 only; service workers blocked for deterministic network-failure tests",
@@ -26,6 +26,7 @@
     "ocr_clears_previous_conditions_demo_outage_and_history",
     "real_local_ocr_synthetic_label",
     "photo_reading_requires_user_confirmation",
+    "notice_conditions_drive_the_extra_inputs",
     "official_anker_candidate",
     "official_link",
     "serial_and_us_scope_pending_review",

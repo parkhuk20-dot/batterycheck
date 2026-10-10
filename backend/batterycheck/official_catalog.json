@@ -5,40 +5,84 @@
     {
       "id": "cpsc-25-338",
       "title": "Anker PowerCore 10000 A1263 리콜 공지 (미국)",
-      "brands": ["Anker"],
-      "models": ["A1263"],
+      "brands": [
+        "Anker"
+      ],
+      "models": [
+        "A1263"
+      ],
       "source_id": "cpsc-curated",
       "source_url": "https://www.cpsc.gov/Recalls/2025/More-than-One-Million-Anker-Power-Banks-Recalled-Due-to-Fire-and-Burn-Hazards-Manufactured-by-Anker-Innovations",
       "published_at": "2025-06-12",
       "fetched_at": "2026-10-02T14:55:37+00:00",
       "evidence_kind": "official_web_curated",
       "review_status": "pending",
-      "action": "이 공지는 대상 제품의 사용 중단과 제조사 교환 안내를 제공합니다. 미국 판매 여부와 대상 일련번호를 Anker 공식 리콜 페이지에서 직접 확인하세요.",
+      "action": "이 공지의 조치는 제조사 교환입니다. Anker 공식 리콜 페이지에서 시리얼번호를 조회하고 교환을 신청할 수 있습니다.",
       "manufacturer_url": "https://www.anker.com/product-recalls",
       "conditions": [
-        {"field": "sale_region", "expected": ["미국 판매 제품"], "text": "이 공지는 미국에서 판매된 제품에 한정됩니다. 현재 위치나 제조국으로 판매지역을 대신하지 마세요."},
-        {"field": "serial_number", "expected": ["제조사 사이트에서 대상 일련번호 확인"], "text": "A1263 전체가 대상은 아닙니다. Anker 공식 페이지에서 대상 일련번호를 확인하세요. 일련번호를 로트값으로 대신하지 않습니다."}
+        {
+          "field": "sale_region",
+          "rule": "region",
+          "values": [],
+          "models": [],
+          "expected": [
+            "미국 판매 제품"
+          ],
+          "text": "이 리콜은 미국에서 판매된 제품만 대상입니다."
+        },
+        {
+          "field": "serial_number",
+          "rule": "external",
+          "values": [],
+          "models": [],
+          "expected": [
+            "제조사 페이지에서 조회"
+          ],
+          "url": "https://www.anker.com/product-recalls",
+          "text": "A1263 전체가 대상은 아닙니다. 이 리콜은 Anker 공식 페이지에서 시리얼번호를 조회해야 대상 여부를 알 수 있습니다."
+        }
       ],
-      "excerpts": ["Only model number A1263 power banks sold in the U.S. with qualifying serial numbers are included in the recall."]
+      "excerpts": [
+        "Only model number A1263 power banks sold in the U.S. with qualifying serial numbers are included in the recall."
+      ]
     },
     {
       "id": "cpsc-26-135",
       "title": "INIU BI-B41 보조배터리 리콜 공지 (미국)",
-      "brands": ["INIU"],
-      "models": ["BI-B41"],
+      "brands": [
+        "INIU"
+      ],
+      "models": [
+        "BI-B41"
+      ],
       "source_id": "cpsc-curated",
       "source_url": "https://www.cpsc.gov/Recalls/2026/INIU-Recalls-Power-Banks-Due-to-Fire-and-Burn-Hazards-Sold-on-Amazon",
       "published_at": "2025-12-05",
       "fetched_at": "2026-10-02T14:55:37+00:00",
       "evidence_kind": "official_web_curated",
       "review_status": "pending",
-      "action": "이 공지는 대상 제품의 사용 중단과 환불 안내를 제공합니다. INIU 공식 리콜 페이지에서 일련번호와 적용 조건을 직접 확인하세요.",
+      "action": "이 공지의 조치는 환불입니다. INIU 공식 리콜 페이지에서 환불을 신청할 수 있습니다.",
       "manufacturer_url": "https://iniushop.com/pages/recall-b41",
       "conditions": [
-        {"field": "sale_region", "expected": ["미국 CPSC 공지 · Amazon.com 판매 범위"], "text": "미국 CPSC 공지이며 Amazon.com 판매 제품에 대한 내용입니다. 국내 회수 자격으로 확대 적용하지 마세요."},
-        {"field": "serial_number", "expected": ["000G21", "000H21", "000I21", "000L21"], "text": "공지에 기재된 일련번호는 000G21, 000H21, 000I21, 000L21입니다. 제조사 페이지에서 직접 확인하세요. 로트값으로 자동 대조하지 않습니다."}
+        {
+          "field": "serial_number",
+          "rule": "one_of",
+          "values": [
+            "000G21",
+            "000H21",
+            "000I21",
+            "000L21"
+          ],
+          "models": [],
+          "expected": [
+            "000G21, 000H21, 000I21, 000L21"
+          ],
+          "text": "이 제품은 공지에 적힌 시리얼번호(S/N)일 때만 리콜 대상입니다."
+        }
       ],
-      "excerpts": ["Only portable power banks with serial numbers 000G21, 000H21, 000I21 and 000L21 are included in this recall."]
+      "excerpts": [
+        "Only portable power banks with serial numbers 000G21, 000H21, 000I21 and 000L21 are included in this recall."
+      ]
     }
   ]
 }
