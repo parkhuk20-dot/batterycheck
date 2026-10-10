@@ -92,7 +92,7 @@ def search(documents, query, limit=TOP_K):
 class Assistant:
     def __init__(self, store, official_service, inspect, client=None):
         self.store, self.official, self.inspect, self._client = store, official_service, inspect, client
-        self.vision = VISION
+        self.vision = VISION or bool(os.environ.get('ANTHROPIC_API_KEY'))
 
     def available(self):
         if self._client is not None:
@@ -109,7 +109,7 @@ class Assistant:
 
     def status(self):
         provider = 'OpenAI 호환 API' + (f' ({GATEWAY.split("//")[-1].split("/")[0]} 게이트웨이 경유)' if GATEWAY else '')
-        return {'available': self.available(), 'provider': provider, 'model': MODEL, 'vision': self.vision and self.available(),
+        return {'available': self.available(), 'provider': provider, 'model': MODEL, 'vision': bool(os.environ.get('ANTHROPIC_API_KEY')) or self.vision and self.available(),
                 'elements': ['ai_agent', 'rag', 'long_term_memory'], 'consent_required': True,
                 'sent_when_consented': '질문 내용, 이전 대화, 내 제품의 브랜드·모델·구매 국가·제조일·LOT·조치 상태·확인 결과 (AI 사진 판독을 켠 경우 올린 사진 포함)'}
 

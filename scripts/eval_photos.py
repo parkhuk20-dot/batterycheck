@@ -5,7 +5,7 @@
 Only fields whose annotation state is "visible" count as exact answers; "not_visible", "uncertain" and "placeholder"
 fields are checked for the reader staying silent. Nothing is looked up by file name or hash.
 """
-import base64, io, json, sys, time
+import base64, io, json, os, sys, time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'backend'))
@@ -13,6 +13,9 @@ from PIL import Image  # noqa: E402
 from batterycheck import ocr, vision  # noqa: E402
 
 FIELDS = ('brand', 'model', 'serial_number')
+# EVAL_AI_MODEL=claude-haiku-4 adds the vision reading (sends every photo to the configured Anthropic endpoint).
+AI_MODEL = os.environ.get('EVAL_AI_MODEL')
+CLAUDE = vision.claude_client() if AI_MODEL else None
 norm = lambda value: ''.join(str(value or '').upper().split())
 
 
@@ -31,11 +34,14 @@ def main(root, out=None):
         note = json.loads(line)
         started = time.time()
         try:
-            read = vision.combine(ocr.extract_label(upload(root / note['image'])), None)
+            data = upload(root / note['image'])
+            seen = vision.read_label_claude(CLAUDE, base64.b64decode(data), AI_MODEL) if AI_MODEL else None
+            read = vision.combine(ocr.extract_label(data), seen)
+            read['ai'] = seen and {'serial_number': seen['serial_number'], 'model': seen['model'], 'brand': seen['brand'], 'confidence': seen['confidence'], 'quality': seen['image_quality']}
         except Exception as exc:  # a reader error is a result too
             read = {'status': 'error', 'error': type(exc).__name__}
         row = {'image': note['image'], 'group': note['group_id'], 'review': note['annotation_status'], 'status': read.get('status'),
-               'seconds': round(time.time() - started, 1), 'fields': {}}
+               'seconds': round(time.time() - started, 1), 'ai': read.get('ai'), 'fields': {}}
         for field in FIELDS:
             truth = (note.get('image_ground_truth') or {}).get(field) or {'value': None, 'state': 'unreviewed'}
             got = read.get(field)
@@ -54,7 +60,7 @@ def main(root, out=None):
         for field in FIELDS:
             verdict = row['fields'][field]['verdict']
             summary[field][verdict] = summary[field].get(verdict, 0) + 1
-    report = {'engine': ocr.engine_status()['engine'], 'images': len(rows), 'summary': summary, 'rows': rows}
+    report = {'engine': ocr.engine_status()['engine'], 'ai_model': AI_MODEL, 'images': len(rows), 'summary': summary, 'rows': rows}
     if out:
         Path(out).write_text(json.dumps(report, ensure_ascii=False, indent=1))
     for row in rows:

@@ -86,6 +86,30 @@ def read_label(client, model, data):
     return seen
 
 
+# Photos are read through the Anthropic Messages API when a key for it is set: the gateway's OpenAI-compatible
+# endpoint refuses image input. BATTERYCHECK_VISION_MODEL takes the model ID as the gateway lists it.
+CLAUDE_MODEL = os.environ.get('BATTERYCHECK_VISION_MODEL', 'claude-opus-4-8')
+
+
+def claude_client():
+    """The SDK reads ANTHROPIC_API_KEY and ANTHROPIC_BASE_URL itself; no key means this route is off."""
+    if not os.environ.get('ANTHROPIC_API_KEY'):
+        return None
+    import anthropic
+    return anthropic.Anthropic(timeout=60, max_retries=1)
+
+
+def read_label_claude(client, data, model=None):
+    media_type = 'image/png' if data.startswith(b'\x89PNG') else 'image/webp' if data[8:12] == b'WEBP' else 'image/jpeg'
+    log.info('[BatteryImage] vision request started')
+    response = client.messages.create(model=model or CLAUDE_MODEL, max_tokens=700, messages=[{'role': 'user', 'content': [
+        {'type': 'image', 'source': {'type': 'base64', 'media_type': media_type, 'data': base64.b64encode(data).decode()}},
+        {'type': 'text', 'text': PROMPT}]}])
+    seen = parse_reply(next((block.text for block in response.content if block.type == 'text'), ''))
+    log.info('[BatteryImage] vision response received')
+    return seen
+
+
 def _same(a, b):
     # Case, spaces and hyphens may differ between readings; any other character difference is a different model.
     return re.sub(r'[\s-]', '', a).upper() == re.sub(r'[\s-]', '', b).upper()
@@ -105,11 +129,13 @@ def combine(ocr, seen):
     status = None
     if seen:
         result.update(product_name=seen['product_name'] or result['product_name'], lot_or_batch=seen['lot_or_batch'] or result['lot_or_batch'])
-        ai_serial = seen.get('serial_number')
-        if ai_serial and not re.search(r'(?i)X{3,}', ai_serial):
-            # Two independent readers agreeing is as good as two passes; a lone or conflicting reading stays a candidate.
-            if any(ai_serial == c for c in result['serial_candidates']):
-                result.update(serial_number=ai_serial, serial_state='read')
+        ai_serial = re.sub(r'(?i)^S\s?/?\s?N\s*[:：#.]?\s*', '', seen.get('serial_number') or '')
+        if ai_serial and not re.search(r'(?i)X{2,}', ai_serial):
+            # The text reader agreeing settles it. Alone, the vision reading counts only when it reports a clear photo and
+            # near-certainty and nothing contradicts it; on the review photos every doubtful serial scored below 0.95.
+            sure = seen['image_quality'] == 'clear' and seen['confidence'].get('serial_number', 0) >= 0.95
+            if any(ai_serial == c for c in result['serial_candidates']) or (sure and not result['serial_candidates']):
+                result.update(serial_number=ai_serial, serial_state='read', serial_candidates=[ai_serial])
             else:
                 result['serial_candidates'].insert(0, ai_serial)
                 result.update(serial_number=None, serial_state='uncertain')

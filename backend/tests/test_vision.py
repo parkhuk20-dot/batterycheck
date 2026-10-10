@@ -64,6 +64,18 @@ class ReadingTests(unittest.TestCase):
             self.assertIn(seen, result['model_candidates'])
         self.assertEqual(vision.combine(ocr(models=['A-1263']), reading(model='a1263'))['status'], 'model_only')
 
+    def test_a_vision_serial_counts_alone_only_when_clear_and_near_certain(self):
+        def serial(value, score, quality='clear', candidates=()):
+            seen = reading(model='A1', serial_number=value, image_quality=quality) | {'confidence': {'model': 0.95, 'serial_number': score}}
+            result = vision.combine(ocr(models=['A1']) | {'serial_candidates': list(candidates)}, seen)
+            return result['serial_number'], result['serial_state']
+        self.assertEqual(serial('SN: FSD230203D', 0.97), ('FSD230203D', 'read'))
+        self.assertEqual(serial('FSD2230203D', 0.88), (None, 'uncertain'))
+        self.assertEqual(serial('TYH220701', 0.97, quality='blurry'), (None, 'uncertain'))
+        self.assertEqual(serial('FSD230203D', 0.97, candidates=['FSD2302030']), (None, 'uncertain'))
+        self.assertEqual(serial('FSD230203D', 0.6, candidates=['FSD230203D']), ('FSD230203D', 'read'))
+        self.assertEqual(serial('000XXX', 0.99), (None, 'not_found'))
+
     def test_reply_wrapped_in_a_code_block_is_parsed(self):
         seen = vision.parse_reply('결과입니다.\n```json\n{"brand": "Anker", "model": "A1263", "product_name": null, "extra": 1,\n"confidence": {"model": 0.9}}\n```\n끝')
         self.assertEqual((seen['brand'], seen['model'], seen['product_name'], seen['lot_or_batch']), ('Anker', 'A1263', None, None))
@@ -152,7 +164,8 @@ class IdentifyTests(unittest.TestCase):
                          ('found', 'Anker', 'A1263', 'PowerCore 10000', 'ai'))
         self.assertEqual((body['model_confirmed'], body['requires_confirmation'], body['photo_retained']), (False, True, False))
         # The label's own serial goes back to the person who photographed it, as a candidate until a second reading agrees.
-        self.assertEqual((body['serial_number'], body['serial_state'], body['serial_candidates']), (None, 'uncertain', ['SN123456789']))
+        # Without a confidence for the serial the vision reading alone stays a candidate.
+        self.assertEqual((body['serial_number'], body['serial_state'], body['serial_candidates']), (None, 'uncertain', ['123456789']))
         self.assertNotIn('text', body)
         parts = fake.requests[0]['messages'][0]['content']
         self.assertEqual([part['type'] for part in parts], ['text', 'image_url'])

@@ -18,6 +18,8 @@ Mac 사진 인식은 Apple Vision을 사용합니다. 첫 실행에는 Swift 컴
 vercel link --yes
 printf 3000 | vercel env add PORT production      # 비루트 사용자가 열 수 있는 포트
 vercel env add OPENAI_API_KEY production          # 코디세이 콘솔의 OpenAI 호환 키를 직접 입력
+vercel env add ANTHROPIC_API_KEY production       # (선택) 사진 판독용 Anthropic 호환 키
+vercel env add ANTHROPIC_BASE_URL production      # https://copa.codyssey.kr
 vercel env add SAFETYKOREA_API_KEY production     # (선택) Safety Korea에서 승인받은 인증키
 vercel integration add tursocloud/database --plan starter -m region=iad1 -e production   # 약관 동의는 브라우저에서
 vercel deploy --prod

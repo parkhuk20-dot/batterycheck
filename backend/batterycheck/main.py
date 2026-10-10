@@ -221,7 +221,8 @@ def create_app(db_path=None, catalog_path=CATALOG_PATH, clock=None, official_ser
         vision.log.info('[BatteryImage] file received')
         vision.log.info('[BatteryImage] file size: about %d bytes', len(body.image_base64) * 3 // 4)
         # Photos leave the server only for accounts that agreed to AI processing.
-        use_ai = app.state.assistant.vision and user['ai_consent'] and app.state.assistant.available()
+        claude = vision.claude_client() if user['ai_consent'] else None
+        use_ai = bool(claude) or (app.state.assistant.vision and user['ai_consent'] and app.state.assistant.available())
         vision.log.info('[BatteryImage] vision configured: %s', str(bool(use_ai)).lower())
         if use_ai:
             data = decode_image(body.image_base64)
@@ -236,8 +237,8 @@ def create_app(db_path=None, catalog_path=CATALOG_PATH, clock=None, official_ser
         if use_ai:
             import openai
             try:
-                seen = vision.read_label(app.state.assistant.client(), MODEL, data)
-            except (openai.APIError, IndexError, AttributeError) as exc:
+                seen = vision.read_label_claude(claude, data) if claude else vision.read_label(app.state.assistant.client(), MODEL, data)
+            except (openai.APIError, IndexError, AttributeError, *([__import__('anthropic').APIError] if claude else [])) as exc:
                 vision.log.warning('[BatteryImage] vision request failed: %s', type(exc).__name__)
                 if not (local and (local.get('model_candidates') or local.get('brand_candidates'))):
                     raise HTTPException(502, vision.FAILURE) from None
@@ -253,7 +254,7 @@ def create_app(db_path=None, catalog_path=CATALOG_PATH, clock=None, official_ser
             reading['model_options'] = options
         reply = (local or {'requires_confirmation': True, 'model_confirmed': False, 'photo_retained': False, 'engine': None}) | reading
         reply['processing'] = 'ai' if seen else 'local'
-        reply['ai_hint'] = bool(app.state.assistant.vision and app.state.assistant.available() and not user['ai_consent'])
+        reply['ai_hint'] = bool(not user['ai_consent'] and (os.environ.get('ANTHROPIC_API_KEY') or app.state.assistant.vision and app.state.assistant.available()))
         reply.pop('brand_sources', None)
         if not vision.DEBUG:
             reply.pop('text', None)  # Raw label text can include a serial number.
