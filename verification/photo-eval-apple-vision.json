@@ -1,0 +1,1834 @@
+{
+ "engine": "Apple Vision",
+ "images": 67,
+ "summary": {
+  "brand": {
+   "exact": 7,
+   "silent_ok": 7,
+   "unreviewed": 52,
+   "inferred_labelled": 1
+  },
+  "model": {
+   "missed": 2,
+   "exact": 10,
+   "silent_ok": 3,
+   "unreviewed": 52
+  },
+  "serial_number": {
+   "silent_ok": 11,
+   "exact": 4,
+   "unreviewed": 52
+  }
+ },
+ "rows": [
+  {
+   "image": "images/official/iniu_bib41.png",
+   "group": "iniu_conservative_group",
+   "review": "partially_reviewed",
+   "status": "brand_only",
+   "seconds": 2.4,
+   "fields": {
+    "brand": {
+     "expected": "INIU",
+     "state": "visible",
+     "got": "INIU",
+     "verdict": "exact"
+    },
+    "model": {
+     "expected": "BI-B41",
+     "state": "visible",
+     "got": null,
+     "verdict": "missed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "uncertain",
+     "got": null,
+     "verdict": "silent_ok"
+    }
+   }
+  },
+  {
+   "image": "images/official/belkin_bpb002.png",
+   "group": "belkin_conservative_group",
+   "review": "partially_reviewed",
+   "status": "brand_only",
+   "seconds": 2.1,
+   "fields": {
+    "brand": {
+     "expected": "Belkin",
+     "state": "visible",
+     "got": "Belkin",
+     "verdict": "exact"
+    },
+    "model": {
+     "expected": "BPB002",
+     "state": "visible",
+     "got": null,
+     "verdict": "missed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "uncertain",
+     "got": null,
+     "verdict": "silent_ok"
+    }
+   }
+  },
+  {
+   "image": "images/official/iwalk_mxb008_back.png",
+   "group": "iwalk_conservative_group",
+   "review": "partially_reviewed",
+   "status": "model_only",
+   "seconds": 2.0,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "not_visible",
+     "got": null,
+     "verdict": "silent_ok"
+    },
+    "model": {
+     "expected": "MXB008",
+     "state": "visible",
+     "got": "MXB008",
+     "verdict": "exact"
+    },
+    "serial_number": {
+     "expected": "GK2311109",
+     "state": "visible",
+     "got": "GK2311109",
+     "verdict": "exact"
+    }
+   }
+  },
+  {
+   "image": "images/official/iwalk_mxb008_serial.png",
+   "group": "iwalk_conservative_group",
+   "review": "partially_reviewed",
+   "status": "model_only",
+   "seconds": 1.2,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "not_visible",
+     "got": null,
+     "verdict": "silent_ok"
+    },
+    "model": {
+     "expected": "MXB008",
+     "state": "visible",
+     "got": "MXB008",
+     "verdict": "exact"
+    },
+    "serial_number": {
+     "expected": "GK2311109",
+     "state": "visible",
+     "got": "GK2311109",
+     "verdict": "exact"
+    }
+   }
+  },
+  {
+   "image": "images/official/iwalk_dbl6000_serial.png",
+   "group": "iwalk_conservative_group",
+   "review": "partially_reviewed",
+   "status": "not_found",
+   "seconds": 2.2,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "not_visible",
+     "got": null,
+     "verdict": "silent_ok"
+    },
+    "model": {
+     "expected": null,
+     "state": "not_visible",
+     "got": null,
+     "verdict": "silent_ok"
+    },
+    "serial_number": {
+     "expected": "GK2310165",
+     "state": "visible",
+     "got": "GK2310165",
+     "verdict": "exact"
+    }
+   }
+  },
+  {
+   "image": "images/official/baseus_label_1.jpg",
+   "group": "baseus_conservative_group",
+   "review": "partially_reviewed",
+   "status": "not_found",
+   "seconds": 2.0,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "not_visible",
+     "got": null,
+     "verdict": "silent_ok"
+    },
+    "model": {
+     "expected": null,
+     "state": "not_visible",
+     "got": null,
+     "verdict": "silent_ok"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "uncertain",
+     "got": null,
+     "verdict": "silent_ok"
+    }
+   }
+  },
+  {
+   "image": "images/official/baseus_label_2.jpg",
+   "group": "baseus_conservative_group",
+   "review": "partially_reviewed",
+   "status": "not_found",
+   "seconds": 1.7,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "not_visible",
+     "got": null,
+     "verdict": "silent_ok"
+    },
+    "model": {
+     "expected": null,
+     "state": "not_visible",
+     "got": null,
+     "verdict": "silent_ok"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "uncertain",
+     "got": null,
+     "verdict": "silent_ok"
+    }
+   }
+  },
+  {
+   "image": "images/official/baseus_model_1.jpg",
+   "group": "baseus_conservative_group",
+   "review": "partially_reviewed",
+   "status": "model_only",
+   "seconds": 1.7,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "not_visible",
+     "got": null,
+     "verdict": "silent_ok"
+    },
+    "model": {
+     "expected": "PPCXW06",
+     "state": "visible",
+     "got": "PPCXW06",
+     "verdict": "exact"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "not_visible",
+     "got": null,
+     "verdict": "silent_ok"
+    }
+   }
+  },
+  {
+   "image": "images/official/baseus_model_2.jpg",
+   "group": "baseus_conservative_group",
+   "review": "partially_reviewed",
+   "status": "model_only",
+   "seconds": 1.9,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "not_visible",
+     "got": null,
+     "verdict": "silent_ok"
+    },
+    "model": {
+     "expected": "PPCXM06",
+     "state": "visible",
+     "got": "PPCXM06",
+     "verdict": "exact"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "not_visible",
+     "got": null,
+     "verdict": "silent_ok"
+    }
+   }
+  },
+  {
+   "image": "images/official/iniu_serial_guide.jpg",
+   "group": "iniu_conservative_group",
+   "review": "partially_reviewed",
+   "status": "found",
+   "seconds": 1.8,
+   "fields": {
+    "brand": {
+     "expected": "INIU",
+     "state": "visible",
+     "got": "INIU",
+     "verdict": "exact"
+    },
+    "model": {
+     "expected": "BI-B41",
+     "state": "visible",
+     "got": "BI-B41",
+     "verdict": "exact"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "placeholder",
+     "got": null,
+     "verdict": "silent_ok"
+    }
+   }
+  },
+  {
+   "image": "images/official/charmast_001.png",
+   "group": "charmast_source_group",
+   "review": "needs_review",
+   "status": "brand_only",
+   "seconds": 2.1,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "Charmast",
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/charmast_002.jpg",
+   "group": "charmast_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 2.4,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/newdery_003.png",
+   "group": "newdery_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 3.8,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/newdery_004.png",
+   "group": "newdery_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 3.3,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/esr_005.jpg",
+   "group": "esr_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.9,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/esr_006.jpg",
+   "group": "esr_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 2.4,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/esr_007.jpg",
+   "group": "esr_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 2.3,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/esr_008.jpg",
+   "group": "esr_source_group",
+   "review": "needs_review",
+   "status": "model_only",
+   "seconds": 2.4,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "2G5128",
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/vrurc_009.png",
+   "group": "vrurc_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 2.2,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/vrurc_010.png",
+   "group": "vrurc_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.9,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/vrurc_011.png",
+   "group": "vrurc_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.7,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/vrurc_012.png",
+   "group": "vrurc_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.9,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/mycharge_hub_013.png",
+   "group": "mycharge_hub_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.5,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/mycharge_hub_014.png",
+   "group": "mycharge_hub_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.4,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/mycharge_015.png",
+   "group": "mycharge_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.3,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/mycharge_016.png",
+   "group": "mycharge_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.1,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/mycharge_017.png",
+   "group": "mycharge_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.2,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/mycharge_018.png",
+   "group": "mycharge_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.0,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/mycharge_019.png",
+   "group": "mycharge_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.1,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/mycharge_020.png",
+   "group": "mycharge_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.1,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/mycharge_021.png",
+   "group": "mycharge_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.1,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/casely_022.png",
+   "group": "casely_source_group",
+   "review": "needs_review",
+   "status": "brand_only",
+   "seconds": 1.7,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "Casely",
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/casely_023.png",
+   "group": "casely_source_group",
+   "review": "needs_review",
+   "status": "found",
+   "seconds": 0.4,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "Casely",
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "E33A",
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/casely_024.png",
+   "group": "casely_source_group",
+   "review": "needs_review",
+   "status": "found",
+   "seconds": 0.3,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "Casely",
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "E33A",
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/anker_2025_025.png",
+   "group": "anker_conservative_group",
+   "review": "needs_review",
+   "status": "model_only",
+   "seconds": 2.1,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "A1257",
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/anker_2024_026.png",
+   "group": "anker_conservative_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.2,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/anker_2024_027.png",
+   "group": "anker_conservative_group",
+   "review": "needs_review",
+   "status": "brand_only",
+   "seconds": 1.4,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "Anker",
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/anker_2024_028.png",
+   "group": "anker_conservative_group",
+   "review": "needs_review",
+   "status": "brand_only",
+   "seconds": 1.6,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "Anker",
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/anker_a1263_029.jpg",
+   "group": "anker_conservative_group",
+   "review": "needs_review",
+   "status": "brand_only",
+   "seconds": 1.6,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "Anker",
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/iwalk_031.png",
+   "group": "iwalk_conservative_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.5,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/iwalk_034.png",
+   "group": "iwalk_conservative_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.9,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/iwalk_035.png",
+   "group": "iwalk_conservative_group",
+   "review": "needs_review",
+   "status": "model_only",
+   "seconds": 1.6,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "DBL.G00OM",
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/amazonbasics_037.jpg",
+   "group": "amazonbasics_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.9,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/amazonbasics_038.jpg",
+   "group": "amazonbasics_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 2.0,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/amazonbasics_039.jpg",
+   "group": "amazonbasics_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.9,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/amazonbasics_040.jpg",
+   "group": "amazonbasics_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 2.1,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/amazonbasics_041.jpg",
+   "group": "amazonbasics_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.7,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/amazonbasics_042.jpg",
+   "group": "amazonbasics_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 2.6,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/veektomx_043.png",
+   "group": "veektomx_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.7,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/veektomx_044.png",
+   "group": "veektomx_source_group",
+   "review": "needs_review",
+   "status": "model_only",
+   "seconds": 2.2,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "VT103",
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/veektomx_045.png",
+   "group": "veektomx_source_group",
+   "review": "needs_review",
+   "status": "found",
+   "seconds": 1.2,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "Veektomx",
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "VT103",
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/spector_046.png",
+   "group": "spector_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.9,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/user/배터리!!!!!!!!1(1).png",
+   "group": "baseus_conservative_group",
+   "review": "partially_reviewed",
+   "status": "found",
+   "seconds": 1.3,
+   "fields": {
+    "brand": {
+     "expected": "Baseus",
+     "state": "visible",
+     "got": "Baseus",
+     "verdict": "exact"
+    },
+    "model": {
+     "expected": "BS-30KP365",
+     "state": "visible",
+     "got": "BS-30KP365",
+     "verdict": "exact"
+    },
+    "serial_number": {
+     "expected": "FSD230203D",
+     "state": "visible",
+     "got": "FSD230203D",
+     "verdict": "exact"
+    }
+   }
+  },
+  {
+   "image": "images/user/배터리(1).png",
+   "group": "anker_conservative_group",
+   "review": "partially_reviewed",
+   "status": "found",
+   "seconds": 0.4,
+   "fields": {
+    "brand": {
+     "expected": "Anker",
+     "state": "visible",
+     "got": "Anker",
+     "verdict": "exact"
+    },
+    "model": {
+     "expected": "A1263",
+     "state": "visible",
+     "got": "A1263",
+     "verdict": "exact"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "uncertain",
+     "got": null,
+     "verdict": "silent_ok"
+    }
+   }
+  },
+  {
+   "image": "images/user/배터리12(1).png",
+   "group": "baseus_conservative_group",
+   "review": "partially_reviewed",
+   "status": "found",
+   "seconds": 1.1,
+   "fields": {
+    "brand": {
+     "expected": "Baseus",
+     "state": "visible",
+     "got": "Baseus",
+     "verdict": "exact"
+    },
+    "model": {
+     "expected": "BS-30KP365",
+     "state": "visible",
+     "got": "BS-30KP365",
+     "verdict": "exact"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "uncertain",
+     "got": null,
+     "verdict": "silent_ok"
+    }
+   }
+  },
+  {
+   "image": "images/user/배터리진짜로(2).png",
+   "group": "casely_source_group",
+   "review": "partially_reviewed",
+   "status": "found",
+   "seconds": 0.4,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "inferred_from_domain",
+     "got": "Casely",
+     "verdict": "inferred_labelled"
+    },
+    "model": {
+     "expected": "E33A",
+     "state": "visible",
+     "got": "E33A",
+     "verdict": "exact"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "not_visible",
+     "got": null,
+     "verdict": "silent_ok"
+    }
+   }
+  },
+  {
+   "image": "images/user/배터리찐(1).png",
+   "group": "anker_conservative_group",
+   "review": "partially_reviewed",
+   "status": "found",
+   "seconds": 0.8,
+   "fields": {
+    "brand": {
+     "expected": "Anker",
+     "state": "visible",
+     "got": "Anker",
+     "verdict": "exact"
+    },
+    "model": {
+     "expected": "A1263",
+     "state": "visible",
+     "got": "A1263",
+     "verdict": "exact"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "uncertain",
+     "got": null,
+     "verdict": "silent_ok"
+    }
+   }
+  },
+  {
+   "image": "images/official/ubio_extra_01.png",
+   "group": "ubio_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.8,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/ubio_extra_02.jpg",
+   "group": "ubio_source_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 2.0,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/ubio_extra_03.png",
+   "group": "ubio_source_group",
+   "review": "needs_review",
+   "status": "model_only",
+   "seconds": 3.1,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "PWB1071",
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/baseus_magnetic_extra_04.jpg",
+   "group": "baseus_conservative_group",
+   "review": "needs_review",
+   "status": "brand_only",
+   "seconds": 2.2,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "Baseus",
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/baseus_magnetic_extra_05.jpg",
+   "group": "baseus_conservative_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.7,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/baseus_magnetic_extra_06.jpg",
+   "group": "baseus_conservative_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.6,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/belkin_extra_07.jpg",
+   "group": "belkin_conservative_group",
+   "review": "needs_review",
+   "status": "brand_only",
+   "seconds": 1.8,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "Belkin",
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/belkin_extra_08.png",
+   "group": "belkin_conservative_group",
+   "review": "needs_review",
+   "status": "brand_only",
+   "seconds": 2.4,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "Belkin",
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": "57X10F63E06040",
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/belkin_extra_09.png",
+   "group": "belkin_conservative_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 2.0,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  },
+  {
+   "image": "images/official/belkin_extra_10.jpg",
+   "group": "belkin_conservative_group",
+   "review": "needs_review",
+   "status": "not_found",
+   "seconds": 1.7,
+   "fields": {
+    "brand": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "model": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    },
+    "serial_number": {
+     "expected": null,
+     "state": "unreviewed",
+     "got": null,
+     "verdict": "unreviewed"
+    }
+   }
+  }
+ ]
+}

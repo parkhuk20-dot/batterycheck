@@ -244,9 +244,13 @@ def create_app(db_path=None, catalog_path=CATALOG_PATH, clock=None, official_ser
         reading = vision.combine(local, seen)
         if reading['model'] and hasattr(app.state.official_service, 'brands_for_model'):
             reading = vision.enrich(reading, app.state.official_service.brands_for_model(reading['model']))
-        elif reading['status'] == 'brand_only' and hasattr(app.state.official_service, 'models_for_product'):
-            # No model on the photo: offer the models official notices list for this brand, for the user to compare with the label.
-            reading['model_options'] = app.state.official_service.models_for_product(reading['brand'], reading.get('product_name'))
+        elif hasattr(app.state.official_service, 'models_for_product'):
+            # The reader found no "Model" line. A model from an official notice standing word-for-word in the label text is
+            # offered first; failing that, the models notices list for this brand. The user compares either with the label.
+            options = app.state.official_service.models_in_text((local or {}).get('text', ''))
+            if not options and reading['status'] == 'brand_only':
+                options = app.state.official_service.models_for_product(reading['brand'], reading.get('product_name'))
+            reading['model_options'] = options
         reply = (local or {'requires_confirmation': True, 'model_confirmed': False, 'photo_retained': False, 'engine': None}) | reading
         reply['processing'] = 'ai' if seen else 'local'
         reply['ai_hint'] = bool(app.state.assistant.vision and app.state.assistant.available() and not user['ai_consent'])

@@ -496,6 +496,12 @@ class OfficialService:
                   if notice.get("brands") and _has_model(model, notice)]
         return list(dict.fromkeys(b.title() if b.isupper() and len(b) > 4 else b for b in brands))
 
+    def models_in_text(self, text):
+        """Models from official notices that appear word-for-word in text read off a label; offered for the user to confirm."""
+        _, _, _, notices = self._load()
+        listed = dict.fromkeys((notice["brands"][0] if notice.get("brands") else "", model) for notice in notices for model in notice.get("models", []) if len(model) >= 5)
+        return [{"brand": brand, "model": model} for brand, model in listed if _token(model, text)][:5]
+
     def models_for_product(self, brand, product_name=None):
         """Official notices for a brand (and product name) whose model the photo did not show; candidates to check, not a match."""
         _, _, _, notices = self._load()

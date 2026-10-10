@@ -151,7 +151,9 @@ class IdentifyTests(unittest.TestCase):
         self.assertEqual((body['status'], body['brand'], body['model'], body['product_name'], body['processing']),
                          ('found', 'Anker', 'A1263', 'PowerCore 10000', 'ai'))
         self.assertEqual((body['model_confirmed'], body['requires_confirmation'], body['photo_retained']), (False, True, False))
-        self.assertNotIn('SN123456789', after.text)
+        # The label's own serial goes back to the person who photographed it, as a candidate until a second reading agrees.
+        self.assertEqual((body['serial_number'], body['serial_state'], body['serial_candidates']), (None, 'uncertain', ['SN123456789']))
+        self.assertNotIn('text', body)
         parts = fake.requests[0]['messages'][0]['content']
         self.assertEqual([part['type'] for part in parts], ['text', 'image_url'])
         self.assertTrue(parts[1]['image_url']['url'].startswith('data:image/png;base64,iVBOR'))

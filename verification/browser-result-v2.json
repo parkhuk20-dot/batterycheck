@@ -1,6 +1,6 @@
 {
   "status": "passed",
-  "checked_at": "2026-10-08T02:53:18.113Z",
+  "checked_at": "2026-10-10T06:23:26.536Z",
   "browser": "existing Chromium headless",
   "desktop_focus_changed": false,
   "browser_network_scope": "127.0.0.1:3114 only; service workers blocked for deterministic network-failure tests",

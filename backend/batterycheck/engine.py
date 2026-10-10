@@ -62,6 +62,11 @@ def evaluate(product: ProductInput, catalog_path=CATALOG_PATH, now=None):
 
     source = catalog.source.model_dump(mode="json")
     last_success = catalog.source.last_success_at
+    if Path(catalog_path) == CATALOG_PATH and last_success and last_success <= now:
+        # The practice catalogue ships with the app and is read on the spot; its recorded date alone would
+        # expire the demo a week after each release. The "stale" scenario below still shows the expired case.
+        last_success = now
+        source["last_success_at"] = now.isoformat()
     if product.scenario == "outage":
         source["state"] = "failed"
     elif product.scenario == "stale":

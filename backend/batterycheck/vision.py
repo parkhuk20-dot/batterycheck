@@ -99,10 +99,20 @@ def combine(ocr, seen):
     sources = ocr.get('brand_sources', {})
     raw = brands[0] if brands else None
     result = {'brand': display_brand(raw), 'brand_raw': raw, 'brand_source': sources.get(raw, 'label_text') if raw else 'unknown',
-              'model': models[0] if models else None, 'product_name': ocr.get('product_name'), 'lot_or_batch': None, 'used_ai': seen is not None}
+              'model': models[0] if models else None, 'product_name': ocr.get('product_name'), 'lot_or_batch': ocr.get('lot'), 'used_ai': seen is not None,
+              'serial_number': ocr.get('serial_number'), 'serial_state': ocr.get('serial_state', 'not_found'),
+              'serial_candidates': list(ocr.get('serial_candidates', [])), 'date_code': ocr.get('date_code')}
     status = None
     if seen:
-        result.update(product_name=seen['product_name'] or result['product_name'], lot_or_batch=seen['lot_or_batch'])
+        result.update(product_name=seen['product_name'] or result['product_name'], lot_or_batch=seen['lot_or_batch'] or result['lot_or_batch'])
+        ai_serial = seen.get('serial_number')
+        if ai_serial and not re.search(r'(?i)X{3,}', ai_serial):
+            # Two independent readers agreeing is as good as two passes; a lone or conflicting reading stays a candidate.
+            if any(ai_serial == c for c in result['serial_candidates']):
+                result.update(serial_number=ai_serial, serial_state='read')
+            else:
+                result['serial_candidates'].insert(0, ai_serial)
+                result.update(serial_number=None, serial_state='uncertain')
         if seen['brand']:
             result.update(brand=display_brand(seen['brand']), brand_raw=seen['brand'], brand_source=seen['brand_source'])
             if not any(_same(seen['brand'], b) for b in brands):

@@ -50,7 +50,8 @@ def image_dimensions(data):
 
 
 def engine_status():
-    if platform.system() == 'Darwin' and shutil.which('swiftc'):
+    # BATTERYCHECK_OCR_ENGINE=tesseract reproduces the deployed reader on a Mac.
+    if platform.system() == 'Darwin' and shutil.which('swiftc') and os.environ.get('BATTERYCHECK_OCR_ENGINE', '').lower() != 'tesseract':
         return {'engine': 'Apple Vision', 'available': True, 'processing': 'local', 'retains_images': False}
     if shutil.which('tesseract'):
         return {'engine': 'Tesseract', 'available': True, 'processing': 'local', 'retains_images': False}
@@ -103,7 +104,8 @@ def brand_guesses(lines):
         add(name, 'website_domain')
     # Logo lettering is often misread by one character (BASEU5, 8ASEUS).
     for word in dict.fromkeys(re.findall(r'[A-Z0-9]{4,10}', text)):
-        close = difflib.get_close_matches(word, [b for b in BRANDS if ' ' not in b], n=1, cutoff=0.8)
+        # Short names are one slip away from each other and from noise, so only longer ones are matched loosely.
+        close = difflib.get_close_matches(word, [b for b in BRANDS if ' ' not in b and len(b) >= 6], n=1, cutoff=0.8) if len(word) >= 6 else []
         if close and word not in _GENERIC:
             add(close[0], 'visible_logo_text')
     return found
@@ -119,15 +121,60 @@ _UNIT = re.compile(r'(?i)\d+(?:\.\d+)?\s?(?:mah|wh|v|w|a|hz)')  # a bare figure 
 _STANDALONE_MODEL = re.compile(r'[A-Z]{1,5}-?\d{2,6}[A-Z]{0,3}(?:-[A-Z0-9]{1,6})?')
 
 
+_MARK = r"(?<![A-Za-z])(?:S\s?/\s?N|SN|Serial(?:\s*(?:No\.?|Number))?|시리얼(?:\s*번호)?|일련번호|製造番号)"
+_SERIAL_MARK = re.compile(_MARK + r"\s*[:：#.]", re.I)
+# The value must run cleanly to the end of its token: "SN:AAC2NK(E53" is a broken reading, not a serial.
+_SERIAL = re.compile("(?i:" + _MARK + r"\s*[:：#.]?\s*)([A-Za-z0-9][A-Za-z0-9-]{4,29})(?![^\s,;.)])")
+_LOT = re.compile(r"(?i:(?<![A-Za-z])(?:LOT|Batch)(?:\s*(?:No\.?|Number))?\s*[:：#.]?\s*)([A-Za-z0-9][A-Za-z0-9-]{2,19})(?![^\s,;.)])")
+_DATE_CODE = re.compile(r"(?i:(?<![A-Za-z])date\s*code\s*[:：#.]?\s*)([0-9][0-9/.-]{3,9})(?![^\s,;)])")
+
+
+def identifiers(passes):
+    """Serial number, LOT and date code from one or more readings of the same photo.
+
+    Characters are kept exactly as read (leading zeros, hyphens, case). A serial counts as read only when two
+    readings agree, because one slip (0/D, 5/S) changes whether a recall applies; otherwise it is offered as a
+    candidate for the user to compare with the label. Guide pictures print "000XXX": that is an example, not a number.
+    """
+    seen, marked, example, extra = [], False, False, {'lot': None, 'date_code': None}
+    for lines in passes:
+        found = []
+        for line in (line.translate(_LOOKALIKES) for line in lines):
+            marked = marked or bool(_SERIAL_MARK.search(line))
+            for value in _SERIAL.findall(line):
+                if re.search(r'(?i)X{2,}', value):
+                    example = True
+                elif any(c.isdigit() for c in value) and not _UNIT.fullmatch(value):
+                    found.append(value)
+            for key, pattern in (('lot', _LOT), ('date_code', _DATE_CODE)):
+                match = pattern.search(line)
+                if match and any(c.isdigit() for c in match[1]):
+                    extra[key] = extra[key] or match[1]
+        seen.append(list(dict.fromkeys(found)))
+    values = list(dict.fromkeys(v for found in seen for v in found))
+    agreed = [v for v in values if sum(v in found for found in seen) >= 2]
+    if len(agreed) == 1 and len(values) == 1:
+        state, serial = 'read', agreed[0]
+    elif values or marked and not example:
+        state, serial = 'uncertain', None
+    else:
+        state, serial = ('placeholder' if example else 'not_found'), None
+    return {'serial_number': serial, 'serial_state': state, 'serial_candidates': values[:4], **extra}
+
+
 def candidates_from_text(lines):
     lines = [line.translate(_LOOKALIKES) for line in lines]
     text = '\n'.join(lines)[:16000]
     guesses = brand_guesses(lines)
     models, product_name = [], None
     for index, line in enumerate(lines):
-        match = re.search(r'(?:model(?:\s*(?:no\.?|number))?|모델(?:명)?|제품명)\s*[:：#]?\s*([A-Za-z0-9][A-Za-z0-9._ /-]{1,60})', line, re.I)
+        match = re.search(r'(?:model(?:[\s|Il]*(?:no\.?|number))?|모델(?:명)?|제품명)\s*[:：#.-]?\s*([A-Za-z0-9][A-Za-z0-9._ /-]{1,60})', line, re.I)
         if match:
-            value = match.group(1).strip()
+            # "If the model is BI-B41": running text between the word and the value is not part of the model.
+            value = re.sub(r'^(?:[a-z]+\s+)+', '', match.group(1).strip())
+            # The model ends at its first part with a digit ("DEMO PB-100", "BS-30KP365"); what follows is the next column.
+            parts = value.split()
+            value = ' '.join(parts[:next((i for i, part in enumerate(parts) if any(c.isdigit() for c in part)), len(parts) - 1) + 1]).strip('._/- ')
             if any(c.isdigit() for c in value):
                 models.append(value)
                 # The product line usually sits right above the model line ("PowerCore 10000" over "Model A1263").
@@ -143,7 +190,8 @@ def candidates_from_text(lines):
                 if _STANDALONE_MODEL.fullmatch(value) and not _UNIT.fullmatch(value):
                     models.append(value)
                     break
-        models.extend(re.findall(r'(?<![A-Za-z0-9._-])A\d{4}[A-Za-z0-9._-]*(?![A-Za-z0-9._-])', line, re.I))
+        # Anker prints its model as A plus four digits, often without the word "Model"; a longer run is something else.
+        models.extend(re.findall(r'(?<![A-Za-z0-9._-])A\d{4}(?:-[A-Za-z0-9]{1,4})?(?![A-Za-z0-9._-])', line, re.I))
     return {'text': text, 'product_name': product_name, 'brand_candidates': [brand for brand, _ in guesses][:8],
             'brand_sources': dict(guesses[:8]),
             'model_candidates': list(dict.fromkeys(models))[:8], 'requires_confirmation': True,
@@ -152,20 +200,29 @@ def candidates_from_text(lines):
 
 
 def image_variants(data):
-    """The photo as sent, then enlarged high-contrast copies (normal and inverted) for small or light-on-dark lettering."""
+    """The photo as sent, then a copy with the background removed, then enlarged high-contrast copies (normal and inverted)."""
     yield ('label.png' if data.startswith(b'\x89PNG') else 'label.jpg'), data
     try:
         import io
-        from PIL import Image, ImageFilter, ImageOps
+        from PIL import Image, ImageChops, ImageFilter, ImageOps
         gray = ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert('L')
+
+        def png(image):
+            buffer = io.BytesIO()
+            image.save(buffer, 'PNG')
+            return buffer.getvalue()
+        # Grey lettering moulded into a dark case barely differs from its background, and a white backdrop uses up the
+        # contrast range. Subtracting the blurred surroundings leaves only the lettering, as dark text on white.
+        scale = min(6.0, max(1.0, 3200 / max(gray.size)))
+        large = gray.resize((round(gray.width * scale), round(gray.height * scale)), Image.LANCZOS)
+        lettering = ImageChops.difference(large, large.filter(ImageFilter.GaussianBlur(max(8, round(max(large.size) / 60)))))
+        yield 'flat.png', png(ImageOps.invert(ImageOps.autocontrast(lettering, cutoff=0.5)))
         scale = min(3.0, max(1.0, 3200 / max(gray.size)))  # enlarging helps small type; never shrink here
         if scale > 1.05:
             gray = gray.resize((round(gray.width * scale), round(gray.height * scale)), Image.LANCZOS)
         gray = ImageOps.autocontrast(gray, cutoff=1).filter(ImageFilter.UnsharpMask(radius=2, percent=120, threshold=3))
         for name, image in (('enhanced.png', gray), ('inverted.png', ImageOps.invert(gray))):
-            buffer = io.BytesIO()
-            image.save(buffer, 'PNG')
-            yield name, buffer.getvalue()
+            yield name, png(image)
     except Exception:  # Pillow missing or an unusual file: the plain reading above still stands.
         return
 
@@ -194,7 +251,7 @@ def extract_label(image_base64):
         raise HTTPException(429, '다른 사진을 확인하는 중입니다. 잠시 후 다시 시도해주세요.')
     try:
         with tempfile.TemporaryDirectory(prefix='batterycheck-label-') as folder:
-            lines, result = [], candidates_from_text([])
+            lines, passes, result = [], [], candidates_from_text([])
             try:
                 # Several readings of the same photo are merged: a logo on the front and a small model line on the back
                 # rarely come out of one pass, and light-on-dark labels need the inverted copy.
@@ -203,20 +260,23 @@ def extract_label(image_base64):
                     image.write_bytes(content)
                     if status['engine'] == 'Apple Vision':
                         completed = subprocess.run([str(_vision_binary()), str(image)], check=True, timeout=25, capture_output=True, text=True)
-                        lines += json.loads(completed.stdout)['lines']
+                        passes.append(json.loads(completed.stdout)['lines'])
                     else:
+                        passes.append([])
                         for mode in ('6', '11'):  # block layout, then sparse text for lone logos and small lines
                             completed = subprocess.run(['tesseract', str(image), 'stdout', '-l', 'eng', '--psm', mode],
                                                        check=True, timeout=12, capture_output=True, text=True)
-                            lines += [line for line in completed.stdout.splitlines() if line.strip()]
-                    lines = list(dict.fromkeys(lines))
+                            passes[-1] += [line for line in completed.stdout.splitlines() if line.strip()]
+                    lines = list(dict.fromkeys(lines + passes[-1]))
                     result = candidates_from_text(lines)
-                    if result['brand_candidates'] and result['model_candidates']:
+                    # A serial needs a second reading to agree with the first before it is trusted.
+                    if result['brand_candidates'] and result['model_candidates'] and (
+                            len(passes) > 1 or identifiers(passes)['serial_state'] == 'not_found'):
                         break
             except (OSError, subprocess.SubprocessError, ValueError, KeyError) as exc:
                 if not lines:
                     raise HTTPException(422, '사진을 읽지 못했습니다. 라벨이 선명하게 보이도록 다시 촬영하거나 직접 입력해주세요.') from exc
-        result.update(engine=status['engine'], processing='local')
+        result.update(identifiers(passes), engine=status['engine'], processing='local')
         return result
     finally:
         _slots.release()

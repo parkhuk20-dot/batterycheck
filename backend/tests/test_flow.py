@@ -88,8 +88,13 @@ class DecisionTests(unittest.TestCase):
                     self.assertIsNotNone(result['sources'][0]['last_success_at'])
 
     def test_age_expires_without_scenario_switch(self):
-        result = evaluate(ProductInput(**VALID), now=datetime(2026, 10, 10, tzinfo=timezone.utc))
-        self.assertEqual(result['status'], 'incomplete')
+        later = datetime(2026, 10, 10, tzinfo=timezone.utc)
+        # A catalogue fetched from elsewhere expires by age; the practice catalogue bundled with the app does not.
+        with tempfile.TemporaryDirectory() as directory:
+            copy = Path(directory) / 'catalog.json'
+            copy.write_text(CATALOG_PATH.read_text())
+            self.assertEqual(evaluate(ProductInput(**VALID), copy, later)['status'], 'incomplete')
+        self.assertEqual(evaluate(ProductInput(**VALID), now=later)['status'], 'matched')
 
     def test_malformed_or_missing_catalog_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:

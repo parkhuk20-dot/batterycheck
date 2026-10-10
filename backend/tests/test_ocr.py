@@ -16,6 +16,25 @@ class OCRTests(unittest.TestCase):
         self.assertFalse(result['model_confirmed'])
         self.assertNotIn('lot', result)
 
+    def test_serial_needs_two_agreeing_readings_and_keeps_its_characters(self):
+        from batterycheck.ocr import identifiers
+        once, twice = ['Model NO.: BS-30KP365', 'Made in China SN:FSD230203D'], ['SN: FSD230203D', 'LOT: 0A-17']
+        self.assertEqual(identifiers([once, twice]) | {'serial_candidates': None},
+                         {'serial_number': 'FSD230203D', 'serial_state': 'read', 'serial_candidates': None, 'lot': '0A-17', 'date_code': None})
+        doubt = identifiers([once, ['SNFSD2302030']])
+        self.assertEqual((doubt['serial_number'], doubt['serial_state'], doubt['serial_candidates']), (None, 'uncertain', ['FSD230203D', 'FSD2302030']))
+        self.assertEqual(identifiers([['SN:AAC2NK(E53105485'], ['SN:AAC2NK(E53105485']])['serial_state'], 'uncertain')
+        self.assertEqual(identifiers([['SN:000XXX'], ['SN: 0008xx']])['serial_state'], 'placeholder')
+        self.assertEqual(identifiers([['FCC ID: SXQ-DBL6000M', 'Capacity: 6000mAh'], []])['serial_state'], 'not_found')
+        self.assertEqual(identifiers([['S/N 000123-ab'], ['S/N 000123-ab']])['serial_number'], '000123-ab')
+
+    def test_model_value_stops_at_the_model_and_ignores_running_text(self):
+        read = lambda *lines: candidates_from_text(list(lines))['model_candidates']
+        self.assertEqual(read('If the model is BI-B41, go to Step 2.'), ['BI-B41'])
+        self.assertEqual(read('ModelINO-BS-30KP365 SIPS NS SA XK'), ['BS-30KP365'])
+        self.assertEqual(read('모델명: DEMO PB-100'), ['DEMO PB-100'])
+        self.assertEqual(read('INIU', 'Capacity:A0000MAN2/92'), [])
+
     def test_unreadable_does_not_invent_product(self):
         self.assertEqual(candidates_from_text(['5000mAh', 'USB output'])['model_candidates'], [])
 

@@ -8,6 +8,8 @@ from fastapi.testclient import TestClient
 
 from batterycheck.assistant import _safety_documents, search
 from batterycheck.main import create_app
+from datetime import datetime, timezone
+
 from batterycheck.official import OfficialService
 
 PASSWORD = 'test password 123'
@@ -46,7 +48,7 @@ class AssistantTest(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         root = Path(self.directory.name)
         self.model = FakeModel([])
-        self.app = create_app(root / 'test.sqlite3', official_service=OfficialService(root / 'official'), ai_client=self.model)
+        self.app = create_app(root / 'test.sqlite3', official_service=OfficialService(root / 'official', clock=lambda: datetime(2026, 10, 3, tzinfo=timezone.utc)), ai_client=self.model)
 
     def account(self, username, consent=True):
         client = TestClient(self.app)
